@@ -1,0 +1,48 @@
+---
+title: "MASTER"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+###############
+## LOAD DATA ## 
+###############
+
+#load the data :) 
+```{r}
+library(readxl)
+EnergyDataset <- read_excel("/Users/nicklasschmidt/Downloads/Master thesis/Dataset/EnergyDataset.xlsx", 
+    col_types = c("date", "numeric", "numeric", 
+        "numeric", "numeric", "numeric", 
+        "numeric"))
+str(EnergyDataset)
+```
+
+#################
+## 4.DATA PART ##
+#################
+
+#Random stuff ACF og Box test ting 
+```{r}
+library(forecast)
+#converting into time-sries 
+DK1ts = ts(EnergyDataset$DK1, start = c(2015,1), frequency = 365 )
+DK2ts = ts(EnergyDataset$DK2, start = c(2015,1), frequency = 365 )
+#plotting ACF 
+library(fpp2)
+ggAcf(DK1ts, lag.max = 365)
+ggAcf(diff(DK1ts), lag.max = 365)
+ggAcf(DK2ts,lag.max = 365)
+ggAcf(diff(DK2ts), lag.max = 365)
+
+#box Diff test 
+Box.test(diff(DK1ts), lag=10, type="Ljung-Box")
+Box.test(diff(DK2ts), lag=10, type="Ljung-Box")
+```
+
+```{r}
+trend = decompose(DK1ts)
+plot(trend$trend, ylab = "Trend", main = "Trend of West Denmark prices")
+```
+
