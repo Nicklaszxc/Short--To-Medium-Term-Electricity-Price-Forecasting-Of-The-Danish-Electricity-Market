@@ -1,0 +1,121 @@
+---
+title: "Deep_Neural_Network"
+output: html_document
+---
+
+###############
+## LOAD DATA ## 
+###############
+
+#load the data :) 
+```{r}
+library(readxl)
+library(forecast)
+data <- read_excel("/Users/nicklasschmidt/Downloads/Master thesis/Dataset/EnergyDataset1.xlsx", 
+    col_types = c("date", "numeric", "numeric", 
+        "numeric", "numeric", "numeric", 
+        "numeric"))
+data = na.omit(data)
+str(data)
+```
+
+#########
+##packs## 
+#########
+```{r}
+# To run the neural network install these python packs, and remeber to have python :) 
+
+#devtools::install_github("rstudio/tensorflow")
+#devtools::install_github("rstudio/keras")
+#tensorflow::install_tensorflow()
+#tensorflow::tf_config()
+
+library(keras)
+library(mlbench)
+library(dplyr)
+library(magrittr)
+library(neuralnet)
+```
+
+#Visual code 
+```{r}
+library(neuralnet)
+model1 <- neuralnet(DK1~gasPrice+dkTemp+dkWind+nwRain,
+               data = data,
+               hidden = c(12,7),
+               linear.output = F,
+               lifesign = 'full',
+               rep=1)
+
+hehe = predict.nn.3.3 <- predict(model1, data)
+```
+https://www.kaggle.com/code/learnmoreaboutpat/predicting-customer-spend 
+
+#constructing train and test sets 
+```{r}
+# Matrix
+data <- as.matrix(data[,2:7])
+
+# Test and Train
+train = subset(data[1:730,3:6])
+test = subset(data[730:1095,3:6])
+
+traintarget = data[1:730,1]
+traintarget <- as.matrix(traintarget)
+testtarget = data[730:1095,1]
+testtarget <- as.matrix(testtarget)
+```
+
+```{r}
+# Normalize
+m <- colMeans(train)
+s <- apply(train, 2, sd)
+training <- scale(train, center = m, scale = s)
+test <- scale(test, center = m, scale = s)
+```
+
+```{r}
+# Create Model
+model <- keras_model_sequential()
+model %>% 
+         layer_dense(units = 5, activation = 'relu', input_shape = c(13)) %>%
+         layer_dense(units = 1)
+
+# Compile
+model %>% compile(loss = 'mse',
+                  optimizer = 'rmsprop',
+                  metrics = 'mae')
+
+# Fit Model
+mymodel <- model %>%
+         fit(train,
+             traintarget,
+             epochs = 100,
+             batch_size = 32,
+             validation_split = 0.2)
+
+# Evaluate
+model %>% evaluate(test, testtarget)
+pred <- model %>% predict(test)
+mean((testtarget-pred)^2)
+plot(testtarget, pred)
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,314 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(forecast)
+library(readxl)
+EnergyDataset <- read_excel("/Users/nicklasschmidt/Downloads/Master thesis/Dataset/EnergyDataset.xlsx", 
+    col_types = c("date", "numeric", "numeric", 
+        "numeric", "numeric", "numeric", 
+        "numeric"))
+
+Year = 2019
+Month = c("February", "July", "September", "December")
+MonthNumber = c(32, 182, 244, 335)
+
+for(MonthVariables in 1:4){
+naivedata=subset(EnergyDataset[1:2623,1:2])
+# First we convert dataset into a time series object
+naivedec = ts(EnergyDataset[,2:2], start = c(2015,1), frequency = 365 )
+
+
+#Subsetting train and test data using window()function 
+month2019train = window(naivedec, end = c(Year, MonthNumber[MonthVariables]))
+month2019test = window(naivedec, start = c(Year, MonthNumber[MonthVariables]))
+
+#Model building, with 1 year plus to febuary
+model1dec2019=naive(month2019train, h=1)
+model7dec2019=naive(month2019train, h=7)
+model14dec2019=naive(month2019train, h=14)
+model21dec2019=naive(month2019train, h=21)
+model28dec2019=naive(month2019train, h=28)
+
+# Accuracy TABLE
+decna1=forecast::accuracy(model1dec2019, month2019test, d=1, D=0)[2,1:6]
+decna7=forecast::accuracy(model7dec2019, month2019test, d=1, D=0)[2,1:6]
+decna14=forecast::accuracy(model14dec2019, month2019test, d=1, D=0)[2,1:6]
+decna21=forecast::accuracy(model21dec2019, month2019test, d=1, D=0)[2,1:6]
+decna28=forecast::accuracy(model28dec2019, month2019test, d=1, D=0)[2,1:6]
+
+accuracytable = rbind(decna1,decna7,decna14,decna21,decna28)
+#plot table
+naivetable = cbind(Month[MonthVariables],accuracytable)
+rownames(naivetable) = c("Point","7 days","14 days","21 days","28 days")
+
+if (MonthVariables == 1) {FebruaryTable = naivetable}
+if (MonthVariables == 2) {JulyTable = naivetable}
+if (MonthVariables == 3) {SeptemberTable = naivetable}
+if (MonthVariables == 4) {DecemberTable = naivetable}
+
+naivetsplot = window(naivedec, start = c(Year, 1),end = c(Year + 1,1))
+prettyplot = autoplot(naivetsplot, xlab = "Year", ylab = "Electricity price in DK1 area", main="Naïve forecast 1/02/2019 to 28/02/2019, h=1,7,14,21,28")+autolayer(model1dec2019, series = "Naive point", PI = FALSE, size = 1)+autolayer(model7dec2019, series = "7 Naive", PI = FALSE, size = 1)+autolayer(model14dec2019, series = "14 Naive", PI = FALSE, size = 1)+autolayer(model21dec2019, series = "21 Naive", PI = FALSE, size = 1)+autolayer(model28dec2019, series = "28 Naive", PI = FALSE, size = 1)
+assign(paste0("prettyplot",MonthVariables),prettyplot)
+}
+#subset DK1 
+FebruaryTable[,c(3,4,7)]
+JulyTable[,c(3,4,7)]
+SeptemberTable[,c(3,4,7)]
+DecemberTable[,c(3,4,7)]
+
+RMSEtable = cbind(as.numeric(FebruaryTable[,3]),as.numeric(JulyTable[,3]),as.numeric(SeptemberTable[,3]),as.numeric(DecemberTable[,3]))
+rownames(RMSEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(RMSEtable) = c("February","July","September","December")
+AverageRMSEtable = rowMeans(RMSEtable)
+AverageRMSEtable
+
+MAEtable = cbind(as.numeric(FebruaryTable[,4]),as.numeric(JulyTable[,4]),as.numeric(SeptemberTable[,4]),as.numeric(DecemberTable[,4]))
+rownames(MAEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(MAEtable) = c("February","July","September","December")
+AverageMAEtable = rowMeans(MAEtable)
+AverageMAEtable
+
+MASEtable = cbind(as.numeric(FebruaryTable[,7]),as.numeric(JulyTable[,7]),as.numeric(SeptemberTable[,7]),as.numeric(DecemberTable[,7]))
+rownames(MASEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(MASEtable) = c("February","July","September","December")
+AverageMASEtable = rowMeans(MASEtable)
+AverageMASEtable
+
+prettyplot1
+prettyplot2
+prettyplot3
+prettyplot4
+```
+
+
+```{r}
+library(forecast)
+library(readxl)
+EnergyDataset <- read_excel("/Users/nicklasschmidt/Downloads/Master thesis/Dataset/EnergyDataset.xlsx", 
+    col_types = c("date", "numeric", "numeric", 
+        "numeric", "numeric", "numeric", 
+        "numeric"))
+
+Year = 2021
+Month = c("February", "July", "September", "December")
+MonthNumber = c(32, 182, 244, 335)
+
+for(MonthVariables in 1:4){
+naivedata=subset(EnergyDataset[1:2623,1:2])
+# First we convert dataset into a time series object
+naivedec = ts(EnergyDataset[,2:2], start = c(2015,1), frequency = 365 )
+
+#Subsetting train and test data using window()function 
+month2019train = window(naivedec, end = c(Year, MonthNumber[MonthVariables]))
+month2019test = window(naivedec, start = c(Year, MonthNumber[MonthVariables]))
+
+#Model building, with 1 year plus to febuary
+model1dec2019=naive(month2019train, h=1)
+model7dec2019=naive(month2019train, h=7)
+model14dec2019=naive(month2019train, h=14)
+model21dec2019=naive(month2019train, h=21)
+model28dec2019=naive(month2019train, h=28)
+
+# Accuracy TABLE
+decna1=forecast::accuracy(model1dec2019, month2019test, d=1, D=0)[2,1:6]
+decna7=forecast::accuracy(model7dec2019, month2019test, d=1, D=0)[2,1:6]
+decna14=forecast::accuracy(model14dec2019, month2019test, d=1, D=0)[2,1:6]
+decna21=forecast::accuracy(model21dec2019, month2019test, d=1, D=0)[2,1:6]
+decna28=forecast::accuracy(model28dec2019, month2019test, d=1, D=0)[2,1:6]
+
+accuracytable = rbind(decna1,decna7,decna14,decna21,decna28)
+#plot table
+naivetable = cbind(Month[MonthVariables],accuracytable)
+rownames(naivetable) = c("Point","7 days","14 days","21 days","28 days")
+
+if (MonthVariables == 1) {FebruaryTable = naivetable}
+if (MonthVariables == 2) {JulyTable = naivetable}
+if (MonthVariables == 3) {SeptemberTable = naivetable}
+if (MonthVariables == 4) {DecemberTable = naivetable}
+}
+#subset DK1 
+FebruaryTable[,c(3,4,7)]
+JulyTable[,c(3,4,7)]
+SeptemberTable[,c(3,4,7)]
+DecemberTable[,c(3,4,7)]
+
+RMSEtable = cbind(as.numeric(FebruaryTable[,3]),as.numeric(JulyTable[,3]),as.numeric(SeptemberTable[,3]),as.numeric(DecemberTable[,3]))
+rownames(RMSEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(RMSEtable) = c("February","July","September","December")
+AverageRMSEtable = rowMeans(RMSEtable)
+AverageRMSEtable
+
+MAEtable = cbind(as.numeric(FebruaryTable[,4]),as.numeric(JulyTable[,4]),as.numeric(SeptemberTable[,4]),as.numeric(DecemberTable[,4]))
+rownames(MAEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(MAEtable) = c("February","July","September","December")
+AverageMAEtable = rowMeans(MAEtable)
+AverageMAEtable
+
+MASEtable = cbind(as.numeric(FebruaryTable[,7]),as.numeric(JulyTable[,7]),as.numeric(SeptemberTable[,7]),as.numeric(DecemberTable[,7]))
+rownames(MASEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(MASEtable) = c("February","July","September","December")
+AverageMASEtable = rowMeans(MASEtable)
+AverageMASEtable
+
+```
+
+##########################
+## Robusness check 2019 ##
+##########################
+new months 
+```{r}
+library(forecast)
+library(readxl)
+EnergyDataset <- read_excel("/Users/nicklasschmidt/Downloads/Master thesis/Dataset/EnergyDataset.xlsx", 
+    col_types = c("date", "numeric", "numeric", 
+        "numeric", "numeric", "numeric", 
+        "numeric"))
+
+Year = 2019
+Month = c("January", "March", "August", "November")
+MonthNumber = c(1, 59, 214, 305)
+
+for(MonthVariables in 1:4){
+naivedata=subset(EnergyDataset[1:2623,1:2])
+# First we convert dataset into a time series object
+naivedec = ts(EnergyDataset[,2:2], start = c(2015,1), frequency = 365 )
+
+
+#Subsetting train and test data using window()function 
+month2019train = window(naivedec, end = c(Year, MonthNumber[MonthVariables]))
+month2019test = window(naivedec, start = c(Year, MonthNumber[MonthVariables]))
+
+#Model building, with 1 year plus to febuary
+model1dec2019=naive(month2019train, h=1)
+model7dec2019=naive(month2019train, h=7)
+model14dec2019=naive(month2019train, h=14)
+model21dec2019=naive(month2019train, h=21)
+model28dec2019=naive(month2019train, h=28)
+
+# Accuracy TABLE
+decna1=forecast::accuracy(model1dec2019, month2019test, d=1, D=0)[2,1:6]
+decna7=forecast::accuracy(model7dec2019, month2019test, d=1, D=0)[2,1:6]
+decna14=forecast::accuracy(model14dec2019, month2019test, d=1, D=0)[2,1:6]
+decna21=forecast::accuracy(model21dec2019, month2019test, d=1, D=0)[2,1:6]
+decna28=forecast::accuracy(model28dec2019, month2019test, d=1, D=0)[2,1:6]
+
+accuracytable = rbind(decna1,decna7,decna14,decna21,decna28)
+#plot table
+naivetable = cbind(Month[MonthVariables],accuracytable)
+rownames(naivetable) = c("Point","7 days","14 days","21 days","28 days")
+
+if (MonthVariables == 1) {FebruaryTable = naivetable}
+if (MonthVariables == 2) {JulyTable = naivetable}
+if (MonthVariables == 3) {SeptemberTable = naivetable}
+if (MonthVariables == 4) {DecemberTable = naivetable}
+
+}
+#subset DK1 
+FebruaryTable[,c(3,4,7)]
+JulyTable[,c(3,4,7)]
+SeptemberTable[,c(3,4,7)]
+DecemberTable[,c(3,4,7)]
+
+RMSEtable = cbind(as.numeric(FebruaryTable[,3]),as.numeric(JulyTable[,3]),as.numeric(SeptemberTable[,3]),as.numeric(DecemberTable[,3]))
+rownames(RMSEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(RMSEtable) = c("February","July","September","December")
+AverageRMSEtable = rowMeans(RMSEtable)
+AverageRMSEtable
+
+MAEtable = cbind(as.numeric(FebruaryTable[,4]),as.numeric(JulyTable[,4]),as.numeric(SeptemberTable[,4]),as.numeric(DecemberTable[,4]))
+rownames(MAEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(MAEtable) = c("February","July","September","December")
+AverageMAEtable = rowMeans(MAEtable)
+AverageMAEtable
+
+MASEtable = cbind(as.numeric(FebruaryTable[,7]),as.numeric(JulyTable[,7]),as.numeric(SeptemberTable[,7]),as.numeric(DecemberTable[,7]))
+rownames(MASEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(MASEtable) = c("February","July","September","December")
+AverageMASEtable = rowMeans(MASEtable)
+AverageMASEtable
+
+```
+
+
+##########################
+## Robusness check 2021 ##
+##########################
+new months 
+
+```{r}
+library(forecast)
+library(readxl)
+EnergyDataset <- read_excel("/Users/nicklasschmidt/Downloads/Master thesis/Dataset/EnergyDataset.xlsx", 
+    col_types = c("date", "numeric", "numeric", 
+        "numeric", "numeric", "numeric", 
+        "numeric"))
+
+Year = 2021
+Month = c("January", "March", "August", "November")
+MonthNumber = c(1, 59, 214, 305)
+
+
+for(MonthVariables in 1:4){
+naivedata=subset(EnergyDataset[1:2623,1:2])
+# First we convert dataset into a time series object
+naivedec = ts(EnergyDataset[,2:2], start = c(2015,1), frequency = 365 )
+
+#Subsetting train and test data using window()function 
+month2019train = window(naivedec, end = c(Year, MonthNumber[MonthVariables]))
+month2019test = window(naivedec, start = c(Year, MonthNumber[MonthVariables]))
+
+#Model building, with 1 year plus to febuary
+model1dec2019=naive(month2019train, h=1)
+model7dec2019=naive(month2019train, h=7)
+model14dec2019=naive(month2019train, h=14)
+model21dec2019=naive(month2019train, h=21)
+model28dec2019=naive(month2019train, h=28)
+
+# Accuracy TABLE
+decna1=forecast::accuracy(model1dec2019, month2019test, d=1, D=0)[2,1:6]
+decna7=forecast::accuracy(model7dec2019, month2019test, d=1, D=0)[2,1:6]
+decna14=forecast::accuracy(model14dec2019, month2019test, d=1, D=0)[2,1:6]
+decna21=forecast::accuracy(model21dec2019, month2019test, d=1, D=0)[2,1:6]
+decna28=forecast::accuracy(model28dec2019, month2019test, d=1, D=0)[2,1:6]
+
+accuracytable = rbind(decna1,decna7,decna14,decna21,decna28)
+#plot table
+naivetable = cbind(Month[MonthVariables],accuracytable)
+rownames(naivetable) = c("Point","7 days","14 days","21 days","28 days")
+
+if (MonthVariables == 1) {FebruaryTable = naivetable}
+if (MonthVariables == 2) {JulyTable = naivetable}
+if (MonthVariables == 3) {SeptemberTable = naivetable}
+if (MonthVariables == 4) {DecemberTable = naivetable}
+}
+#subset DK1 
+FebruaryTable[,c(3,4,7)]
+JulyTable[,c(3,4,7)]
+SeptemberTable[,c(3,4,7)]
+DecemberTable[,c(3,4,7)]
+
+RMSEtable = cbind(as.numeric(FebruaryTable[,3]),as.numeric(JulyTable[,3]),as.numeric(SeptemberTable[,3]),as.numeric(DecemberTable[,3]))
+rownames(RMSEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(RMSEtable) = c("February","July","September","December")
+AverageRMSEtable = rowMeans(RMSEtable)
+AverageRMSEtable
+
+MAEtable = cbind(as.numeric(FebruaryTable[,4]),as.numeric(JulyTable[,4]),as.numeric(SeptemberTable[,4]),as.numeric(DecemberTable[,4]))
+rownames(MAEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(MAEtable) = c("February","July","September","December")
+AverageMAEtable = rowMeans(MAEtable)
+AverageMAEtable
+
+MASEtable = cbind(as.numeric(FebruaryTable[,7]),as.numeric(JulyTable[,7]),as.numeric(SeptemberTable[,7]),as.numeric(DecemberTable[,7]))
+rownames(MASEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(MASEtable) = c("February","July","September","December")
+AverageMASEtable = rowMeans(MASEtable)
+AverageMASEtable
+
+```
+
+
+

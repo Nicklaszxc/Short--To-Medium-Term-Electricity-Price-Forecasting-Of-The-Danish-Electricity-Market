@@ -1,0 +1,2338 @@
+---
+title: "R Notebook"
+---
+#Load the data
+```{r}
+library(readxl)
+library(BVAR)
+library(forecast)
+data <- read_excel("/Users/nicklasschmidt/Downloads/Master thesis/Dataset/EnergyDataset2017-2022.xlsx", 
+    col_types = c("date", "numeric", "numeric", 
+        "numeric", "numeric", "numeric", 
+        "numeric"))
+data = na.omit(data)
+str(data)
+```
+
+
+```{r}
+library(forecast)
+library(readxl)
+library(Metrics)
+EnergyDataset <- read_excel("/Users/nicklasschmidt/Downloads/Master thesis/Dataset/EnergyDataset.xlsx", 
+    col_types = c("date", "numeric", "numeric", 
+        "numeric", "numeric", "numeric", 
+        "numeric"))
+
+Year = 2019
+Month = c("February", "July", "September", "December")
+MonthNumber = c(32, 182, 244, 335)
+
+MonthVariables= 4
+#for(MonthVariables in 1:4){
+naivedata=subset(EnergyDataset[1:2623,1:2])
+# First we convert dataset into a time series object
+naivedec = ts(EnergyDataset[,2:2], start = c(2015,1), frequency = 365 )
+
+
+#Model building, with 1 year plus to febuary
+month2019test1 = window(naivedec, start = c(Year, MonthNumber[MonthVariables]), end = c(Year,1+MonthNumber[MonthVariables]))
+month2019test7 = window(naivedec, start = c(Year, MonthNumber[MonthVariables]), end = c(Year,7+MonthNumber[MonthVariables]))
+month2019test14 = window(naivedec, start = c(Year, MonthNumber[MonthVariables]), end = c(Year,14+MonthNumber[MonthVariables]))
+month2019test21 = window(naivedec, start = c(Year, MonthNumber[MonthVariables]), end = c(Year,21+MonthNumber[MonthVariables]))
+month2019test28 = window(naivedec, start = c(Year, MonthNumber[MonthVariables]), end = c(Year,28+MonthNumber[MonthVariables]))
+
+forecast1 <- c(month2019test1[-length(month2019test1)])
+forecast7 <- c(month2019test7[-length(month2019test7)])
+forecast14 <- c(month2019test14[-length(month2019test14)])
+forecast21 <- c(month2019test21[-length(month2019test21)])
+forecast28 <- c(month2019test28[-length(month2019test28)])
+
+naivemae1=mae(month2019test1[2:nrow(month2019test1),],forecast1)
+naivemae7=mae(month2019test7[2:nrow(month2019test7),],forecast7)
+naivemae14=mae(month2019test14[2:nrow(month2019test14),],forecast14)
+naivemae21=mae(month2019test21[2:nrow(month2019test21),],forecast21)
+naivemae28=mae(month2019test28[2:nrow(month2019test28),],forecast28)
+
+rMAE1 = decna1[3] / naivemae1
+rMAE7 = decna7[3] / naivemae7
+rMAE14 = decna14[3] / naivemae14
+rMAE21 = decna21[3] / naivemae21
+rMAE28 = decna28[3] / naivemae28
+
+}
+```
+
+
+
+
+#BVAR for 2019 (non-Differenced)
+```{r}
+library(vars)
+library(forecast)
+library(BVAR)
+
+Year = 2019
+Month = c("February", "July", "September", "December")
+MonthNumber = c(32, 182, 244, 335)
+
+for(MonthVariables in 1:4){
+# First we convert dataset into a time series object
+Ts = ts(data[,2:7], start = c(2017,1), frequency = 365 )
+TsDK1 = ts(data[,2:2], start = c(2017,1), frequency = 365 )
+
+#Subsetting train and test data using window()function 
+month2019train = window(Ts, end = c(Year, MonthNumber[MonthVariables]))
+month2019test = window(TsDK1, start = c(Year, MonthNumber[MonthVariables]))
+
+#Models estimating.
+bvar.model = bvar(data = month2019train, lags = 7)
+
+#Forecasting for 1-28 days 
+model1dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 1)
+model7dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 7)
+model14dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 14)
+model21dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 21)
+model28dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 28)
+
+bvar.ts1 = ts(data = model1dec2019$quants[2,,1],start = start(month2019test),frequency = frequency(month2019test))
+bvar.ts7 = ts(data = model7dec2019$quants[2,,1],start = start(month2019test),frequency = frequency(month2019test))
+bvar.ts14 = ts(data = model14dec2019$quants[2,,1],start = start(month2019test),frequency = frequency(month2019test))
+bvar.ts21 = ts(data = model21dec2019$quants[2,,1],start = start(month2019test),frequency = frequency(month2019test))
+bvar.ts28 = ts(data = model28dec2019$quants[2,,1],start = start(month2019test),frequency = frequency(month2019test))
+# Accuracy TABLE
+decna1=forecast::accuracy(object = bvar.ts1, x= month2019test)[1:5]
+decna7=forecast::accuracy(object = bvar.ts7, x= month2019test)[1:5]
+decna14=forecast::accuracy(object = bvar.ts14,x= month2019test)[1:5]
+decna21=forecast::accuracy(object = bvar.ts21,x= month2019test)[1:5]
+decna28=forecast::accuracy(object = bvar.ts28,x= month2019test)[1:5]
+
+
+
+accuracytable = rbind(decna1,decna7,decna14,decna21,decna28)
+#plot table
+naivetable = cbind(Month[MonthVariables],accuracytable)
+rownames(naivetable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(naivetable) = c("Month", "ME", "RMSE", "MAE", "MPE", "MAPE")
+
+if (MonthVariables == 1) {FebruaryTable = naivetable}
+if (MonthVariables == 2) {JulyTable = naivetable}
+if (MonthVariables == 3) {SeptemberTable = naivetable}
+if (MonthVariables == 4) {DecemberTable = naivetable}
+
+naivetsplot = window(TsDK1, start = c(Year, 1),end = c(Year + 1,1))
+prettyplot = autoplot(naivetsplot, xlab = "Year", ylab = "Electricity price in DK1 area", main="BVAR, h=1,7,14,21,28")+autolayer(bvar.ts28, series = "28 Days", size = 1)+autolayer(bvar.ts21, series = "21 Days", size = 1)+autolayer(bvar.ts14, series = "14 Days", size = 1)+autolayer(bvar.ts7, series = "7 Days", size = 1)+autolayer(bvar.ts1, series = "Days point", size = 1)
+assign(paste0("prettyplot",MonthVariables),prettyplot)
+
+}
+#subset DK1 
+FebruaryTable[,c(3,4)]
+JulyTable[,c(3,4)]
+SeptemberTable[,c(3,4)]
+DecemberTable[,c(3,4)]
+
+RMSEtable = cbind(as.numeric(FebruaryTable[,3]),as.numeric(JulyTable[,3]),as.numeric(SeptemberTable[,3]),as.numeric(DecemberTable[,3]))
+rownames(RMSEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(RMSEtable) = c("February","July","September","December")
+AverageRMSEtable = rowMeans(RMSEtable)
+AverageRMSEtable
+
+MAEtable = cbind(as.numeric(FebruaryTable[,4]),as.numeric(JulyTable[,4]),as.numeric(SeptemberTable[,4]),as.numeric(DecemberTable[,4]))
+rownames(MAEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(MAEtable) = c("February","July","September","December")
+AverageMAEtable = rowMeans(MAEtable)
+AverageMAEtable
+
+
+
+prettyplot1
+prettyplot2
+prettyplot3
+prettyplot4
+```
+
+#BVAR 2019 (Differenced data) rma and mape
+```{r}
+library(vars)
+library(forecast)
+
+set.seed(123456789)
+library(BVAR)
+
+Year = 2021
+Month = c("February", "July", "September", "December")
+MonthNumber = c(32, 182, 244, 335)
+
+
+
+
+for(MonthVariables in 1:4){
+# First we convert dataset into a time series object
+Ts = ts(data[,2:7], start = c(2017,1), frequency = 365 )
+TsDK1 = ts(data[,2:2], start = c(2017,1), frequency = 365 )
+
+TsDiff = diff(Ts, lag = 1)
+TsDK1Diff = diff(TsDK1, lag = 1)
+
+#Subsetting train and test data using window()function 
+month2019train = window(TsDiff, end = c(Year, MonthNumber[MonthVariables]))
+month2019test = window(TsDK1Diff, start = c(Year, MonthNumber[MonthVariables]))
+
+
+#Models estimating.
+bvar.model = bvar(data = month2019train, lags = 7)
+
+#Forecasting for 1-28 days 
+model1dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 1)
+model7dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 7)
+model14dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 14)
+model21dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 21)
+model28dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 28)
+
+bvar.ts1 = ts(data = model1dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts7 = ts(data = model7dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts14 = ts(data = model14dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts21 = ts(data = model21dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts28 = ts(data = model28dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+# Accuracy TABLE
+decna1=forecast::accuracy(object = bvar.ts1, x= month2019test, d=1, D=0)[1:5]
+decna7=forecast::accuracy(object = bvar.ts7, x= month2019test, d=1, D=0)[1:5]
+decna14=forecast::accuracy(object = bvar.ts14,x= month2019test, d=1, D=0)[1:5]
+decna21=forecast::accuracy(object = bvar.ts21,x= month2019test, d=1, D=0)[1:5]
+decna28=forecast::accuracy(object = bvar.ts28,x= month2019test, d=1, D=0)[1:5]
+
+
+naiveforecast = c(NA, month2019train[,1][-length(month2019train)])
+naiveforecast_1 = ts(data = naiveforecast, start = c(Year-2, MonthNumber[MonthVariables]), end = c(Year, MonthNumber[MonthVariables]),frequency = 365 )
+
+Naive_MAE = mean(abs(month2019train[,1]-naiveforecast_1), na.rm=T)
+
+library(dplyr)
+
+MASE1 = decna1[3] / Naive_MAE
+MASE7 = decna7[3] / Naive_MAE
+MASE14 = decna14[3] / Naive_MAE
+MASE21 = decna21[3] / Naive_MAE
+MASE28 = decna28[3] / Naive_MAE
+
+names(MASE1) <- "newMASE"
+names(MASE7) <- "newMASE"
+names(MASE14) <- "newMASE"
+names(MASE21) <- "newMASE"
+names(MASE28) <- "newMASE"
+
+#Model building, with 1 year plus to febuary
+month2019test1 = window(naivedec, start = c(Year, MonthNumber[MonthVariables]), end = c(Year,1+MonthNumber[MonthVariables]))
+month2019test7 = window(naivedec, start = c(Year, MonthNumber[MonthVariables]), end = c(Year,7+MonthNumber[MonthVariables]))
+month2019test14 = window(naivedec, start = c(Year, MonthNumber[MonthVariables]), end = c(Year,14+MonthNumber[MonthVariables]))
+month2019test21 = window(naivedec, start = c(Year, MonthNumber[MonthVariables]), end = c(Year,21+MonthNumber[MonthVariables]))
+month2019test28 = window(naivedec, start = c(Year, MonthNumber[MonthVariables]), end = c(Year,28+MonthNumber[MonthVariables]))
+
+forecast1 <- c(month2019test1[-length(month2019test1)])
+forecast7 <- c(month2019test7[-length(month2019test7)])
+forecast14 <- c(month2019test14[-length(month2019test14)])
+forecast21 <- c(month2019test21[-length(month2019test21)])
+forecast28 <- c(month2019test28[-length(month2019test28)])
+
+naivemae1=mae(month2019test1[2:nrow(month2019test1),],forecast1)
+naivemae7=mae(month2019test7[2:nrow(month2019test7),],forecast7)
+naivemae14=mae(month2019test14[2:nrow(month2019test14),],forecast14)
+naivemae21=mae(month2019test21[2:nrow(month2019test21),],forecast21)
+naivemae28=mae(month2019test28[2:nrow(month2019test28),],forecast28)
+
+rMAE1 = decna1[3] / naivemae1
+rMAE7 = decna7[3] / naivemae7
+rMAE14 = decna14[3] / naivemae14
+rMAE21 = decna21[3] / naivemae21
+rMAE28 = decna28[3] / naivemae28
+
+
+accuracytable = rbind(c(decna1,MASE1,rMAE1),c(decna7,MASE7,rMAE7),c(decna14,MASE14,rMAE14),c(decna21,MASE21,rMAE21),c(decna28,MASE28,rMAE28))
+#plot table
+naivetable = cbind(Month[MonthVariables],accuracytable)
+rownames(naivetable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(naivetable) = c("Month", "ME", "RMSE", "MAE","MPE", "MAPE","MASEcalc","rMAE")
+
+if (MonthVariables == 1) {FebruaryTable = naivetable}
+if (MonthVariables == 2) {JulyTable = naivetable}
+if (MonthVariables == 3) {SeptemberTable = naivetable}
+if (MonthVariables == 4) {DecemberTable = naivetable}
+
+naivetsplot = window(TsDK1Diff, start = c(Year, 1),end = c(Year + 1,1))
+prettyplot = autoplot(naivetsplot, xlab = "Year", ylab = "Electricity price in DK1 area", main="BVAR, h=1,7,14,21,28")+autolayer(bvar.ts28, series = "28 Days", size = 1)+autolayer(bvar.ts21, series = "21 Days", size = 1)+autolayer(bvar.ts14, series = "14 Days", size = 1)+autolayer(bvar.ts7, series = "7 Days", size = 1)+autolayer(bvar.ts1, series = "Days point", size = 1)
+assign(paste0("prettyplot",MonthVariables),prettyplot)
+
+}
+#subset DK1 
+FebruaryTable[,c(3,4,5,6,7,8)]
+JulyTable[,c(3,4,5,6,7,8)]
+SeptemberTable[,c(3,4,5,6,7,8)]
+DecemberTable[,c(3,4,5,6,7,8)]
+
+RMSEtable = cbind(as.numeric(FebruaryTable[,3]),as.numeric(JulyTable[,3]),as.numeric(SeptemberTable[,3]),as.numeric(DecemberTable[,3]))
+rownames(RMSEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(RMSEtable) = c("February","July","September","December")
+AverageRMSEtable = rowMeans(RMSEtable)
+AverageRMSEtable
+
+MAEtable = cbind(as.numeric(FebruaryTable[,4]),as.numeric(JulyTable[,4]),as.numeric(SeptemberTable[,4]),as.numeric(DecemberTable[,4]))
+rownames(MAEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(MAEtable) = c("February","July","September","December")
+AverageMAEtable = rowMeans(MAEtable)
+AverageMAEtable
+
+MAPEtable = cbind(as.numeric(FebruaryTable[,5]),as.numeric(JulyTable[,5]),as.numeric(SeptemberTable[,5]),as.numeric(DecemberTable[,5]))
+rownames(MAPEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(MAPEtable) = c("February","July","September","December")
+AverageMAPEtable = rowMeans(MAPEtable)
+AverageMAPEtable
+
+MAPEtable = cbind(as.numeric(FebruaryTable[,6]),as.numeric(JulyTable[,6]),as.numeric(SeptemberTable[,6]),as.numeric(DecemberTable[,6]))
+rownames(MAPEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(MAPEtable) = c("February","July","September","December")
+AverageMAPEtable = rowMeans(MAPEtable)
+AverageMAPEtable
+
+MASEtable = cbind(as.numeric(FebruaryTable[,7]),as.numeric(JulyTable[,7]),as.numeric(SeptemberTable[,7]),as.numeric(DecemberTable[,7]))
+rownames(MASEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(MASEtable) = c("February","July","September","December")
+AverageMASEtable = rowMeans(MASEtable)
+AverageMASEtable
+
+rMAEtable = cbind(as.numeric(FebruaryTable[,8]),as.numeric(JulyTable[,8]),as.numeric(SeptemberTable[,8]),as.numeric(DecemberTable[,8]))
+rownames(rMAEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(rMAEtable) = c("February","July","September","December")
+AveragerMAEtable = rowMeans(rMAEtable)
+AveragerMAEtable
+
+#prettyplot1
+#prettyplot2
+#prettyplot3
+#prettyplot4
+```
+
+#BVAR 2021 (Differenced data)
+```{r}
+library(vars)
+library(forecast)
+
+set.seed(123456789)
+library(BVAR)
+
+Year = 2021
+Month = c("February", "July", "September", "December")
+MonthNumber = c(32, 182, 244, 335)
+
+for(MonthVariables in 1:4){
+# First we convert dataset into a time series object
+Ts = ts(data[,c(2:7)], start = c(2017,1), frequency = 365 )
+TsDK1 = ts(data[,2:2], start = c(2017,1), frequency = 365 )
+
+TsDiff = diff(Ts, lag = 1)
+TsDK1Diff = diff(TsDK1, lag = 1)
+
+#Subsetting train and test data using window()function 
+month2019train = window(TsDiff,start = c(Year-2, MonthNumber[MonthVariables]), end = c(Year, MonthNumber[MonthVariables]))
+month2019test = window(TsDK1Diff, start = c(Year, MonthNumber[MonthVariables]))
+
+
+
+#Models estimating.
+bvar.model = bvar(data = month2019train, lags = 7)
+
+#Forecasting for 1-28 days 
+model1dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 1)
+model7dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 7)
+model14dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 14)
+model21dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 21)
+model28dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 28)
+
+bvar.ts1 = ts(data = model1dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts7 = ts(data = model7dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts14 = ts(data = model14dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts21 = ts(data = model21dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts28 = ts(data = model28dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+# Accuracy TABLE
+decna1=forecast::accuracy(object = bvar.ts1, x= month2019test+1)[1:5]
+decna7=forecast::accuracy(object = bvar.ts7, x= month2019test+1)[1:5]
+decna14=forecast::accuracy(object = bvar.ts14,x= month2019test+1)[1:5]
+decna21=forecast::accuracy(object = bvar.ts21,x= month2019test+1)[1:5]
+decna28=forecast::accuracy(object = bvar.ts28,x= month2019test+1)[1:5]
+
+naiveforecast = c(NA, month2019train[,1][-length(month2019train)])
+naiveforecast_1 = ts(data = naiveforecast, start = c(Year-2, MonthNumber[MonthVariables]), end = c(Year, MonthNumber[MonthVariables]),frequency = 365 )
+
+Naive_MAE = mean(abs(month2019train[,1]-naiveforecast_1), na.rm=T)
+
+library(dplyr)
+
+MASE1 = decna1[3] / Naive_MAE
+MASE7 = decna7[3] / Naive_MAE
+MASE14 = decna14[3] / Naive_MAE
+MASE21 = decna21[3] / Naive_MAE
+MASE28 = decna28[3] / Naive_MAE
+
+names(MASE1) <- "newMASE"
+names(MASE7) <- "newMASE"
+names(MASE14) <- "newMASE"
+names(MASE21) <- "newMASE"
+names(MASE28) <- "newMASE"
+
+accuracytable = rbind(c(decna1,MASE1),c(decna7,MASE7),c(decna14,MASE14),c(decna21,MASE21),c(decna28,MASE28))
+#plot table
+naivetable = cbind(Month[MonthVariables],accuracytable)
+rownames(naivetable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(naivetable) = c("Month", "ME", "RMSE", "MAE", "MPE", "MAPE","MASEcalc")
+
+if (MonthVariables == 1) {FebruaryTable = naivetable}
+if (MonthVariables == 2) {JulyTable = naivetable}
+if (MonthVariables == 3) {SeptemberTable = naivetable}
+if (MonthVariables == 4) {DecemberTable = naivetable}
+
+naivetsplot = window(TsDK1Diff, start = c(Year, 1),end = c(Year + 1,1))
+prettyplot = autoplot(naivetsplot, xlab = "Year", ylab = "Electricity price in DK1 area", main="BVAR, h=1,7,14,21,28")+autolayer(bvar.ts28, series = "28 Days", size = 1)+autolayer(bvar.ts21, series = "21 Days", size = 1)+autolayer(bvar.ts14, series = "14 Days", size = 1)+autolayer(bvar.ts7, series = "7 Days", size = 1)+autolayer(bvar.ts1, series = "Days point", size = 1)
+assign(paste0("prettyplot",MonthVariables),prettyplot)
+
+}
+#subset DK1 
+FebruaryTable[,c(3,4,7)]
+JulyTable[,c(3,4,7)]
+SeptemberTable[,c(3,4,7)]
+DecemberTable[,c(3,4,7)]
+
+RMSEtable = cbind(as.numeric(FebruaryTable[,3]),as.numeric(JulyTable[,3]),as.numeric(SeptemberTable[,3]),as.numeric(DecemberTable[,3]))
+rownames(RMSEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(RMSEtable) = c("February","July","September","December")
+AverageRMSEtable = rowMeans(RMSEtable)
+AverageRMSEtable
+
+MAEtable = cbind(as.numeric(FebruaryTable[,4]),as.numeric(JulyTable[,4]),as.numeric(SeptemberTable[,4]),as.numeric(DecemberTable[,4]))
+rownames(MAEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(MAEtable) = c("February","July","September","December")
+AverageMAEtable = rowMeans(MAEtable)
+AverageMAEtable
+
+MASEtable = cbind(as.numeric(FebruaryTable[,7]),as.numeric(JulyTable[,7]),as.numeric(SeptemberTable[,7]),as.numeric(DecemberTable[,7]))
+rownames(MASEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(MASEtable) = c("February","July","September","December")
+AverageMAEtable = rowMeans(MASEtable)
+AverageMAEtable
+
+prettyplot1
+prettyplot2
+prettyplot3
+prettyplot4
+```
+
+#BVAR 2019 (Differenced data) (Average results from 20 random seed)
+```{r}
+library(vars)
+library(forecast)
+library(dplyr)
+
+set.seed(123456789)
+n = 20
+randomseed = sample(1:100000,n)
+
+library(BVAR)
+
+Year = 2019
+Month = c("February", "July", "September", "December")
+MonthNumber = c(32, 182, 244, 335)
+
+TotalAverageRMSE = vector()
+TotalAverageMAE = vector()
+TotalAverageMASE = vector()
+
+for(seed.number in 1:n){
+
+set.seed(randomseed[seed.number])
+  
+for(MonthVariables in 1:4){
+# First we convert dataset into a time series object
+Ts = ts(data[,c(2:7)], start = c(2017,1), frequency = 365 )
+TsDK1 = ts(data[,2:2], start = c(2017,1), frequency = 365 )
+
+TsDiff = diff(Ts, lag = 1)
+TsDK1Diff = diff(TsDK1, lag = 1)
+
+#Subsetting train and test data using window()function 
+month2019train = window(TsDiff,start = c(Year-2, MonthNumber[MonthVariables]), end = c(Year, MonthNumber[MonthVariables]))
+month2019test = window(TsDK1Diff, start = c(Year, MonthNumber[MonthVariables]))
+
+
+#Models estimating.
+bvar.model = bvar(data = month2019train, lags = 7)
+
+#Forecasting for 1-28 days 
+model1dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 1)
+model7dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 7)
+model14dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 14)
+model21dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 21)
+model28dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 28)
+
+bvar.ts1 = ts(data = model1dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts7 = ts(data = model7dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts14 = ts(data = model14dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts21 = ts(data = model21dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts28 = ts(data = model28dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+# Accuracy TABLE
+decna1=forecast::accuracy(object = bvar.ts1, x= month2019test, d=1, D=0)[1:5]
+decna7=forecast::accuracy(object = bvar.ts7, x= month2019test, d=1, D=0)[1:5]
+decna14=forecast::accuracy(object = bvar.ts14,x= month2019test, d=1, D=0)[1:5]
+decna21=forecast::accuracy(object = bvar.ts21,x= month2019test, d=1, D=0)[1:5]
+decna28=forecast::accuracy(object = bvar.ts28,x= month2019test, d=1, D=0)[1:5]
+
+
+naiveforecast = c(NA, month2019train[,1][-length(month2019train)])
+naiveforecast_1 = ts(data = naiveforecast, start = c(Year-2, MonthNumber[MonthVariables]), end = c(Year, MonthNumber[MonthVariables]),frequency = 365 )
+
+Naive_MAE = mean(abs(month2019train[,1]-naiveforecast_1), na.rm=T)
+
+
+MASE1 = decna1[3] / Naive_MAE
+MASE7 = decna7[3] / Naive_MAE
+MASE14 = decna14[3] / Naive_MAE
+MASE21 = decna21[3] / Naive_MAE
+MASE28 = decna28[3] / Naive_MAE
+
+names(MASE1) <- "newMASE"
+names(MASE7) <- "newMASE"
+names(MASE14) <- "newMASE"
+names(MASE21) <- "newMASE"
+names(MASE28) <- "newMASE"
+
+accuracytable = rbind(c(decna1,MASE1),c(decna7,MASE7),c(decna14,MASE14),c(decna21,MASE21),c(decna28,MASE28))
+#plot table
+naivetable = cbind(Month[MonthVariables],accuracytable)
+rownames(naivetable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(naivetable) = c("Month", "ME", "RMSE", "MAE", "MPE", "MAPE","MASEcalc")
+
+if (MonthVariables == 1) {FebruaryTable = naivetable}
+if (MonthVariables == 2) {JulyTable = naivetable}
+if (MonthVariables == 3) {SeptemberTable = naivetable}
+if (MonthVariables == 4) {DecemberTable = naivetable}
+
+naivetsplot = window(TsDK1Diff, start = c(Year, 1),end = c(Year + 1,1))
+prettyplot = autoplot(naivetsplot, xlab = "Year", ylab = "Electricity price in DK1 area", main="BVAR, h=1,7,14,21,28")+autolayer(bvar.ts28, series = "28 Days", size = 1)+autolayer(bvar.ts21, series = "21 Days", size = 1)+autolayer(bvar.ts14, series = "14 Days", size = 1)+autolayer(bvar.ts7, series = "7 Days", size = 1)+autolayer(bvar.ts1, series = "Days point", size = 1)
+assign(paste0("prettyplot",MonthVariables),prettyplot)
+
+}
+
+RMSEtable = cbind(as.numeric(FebruaryTable[,3]),as.numeric(JulyTable[,3]),as.numeric(SeptemberTable[,3]),as.numeric(DecemberTable[,3]))
+rownames(RMSEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(RMSEtable) = c("February","July","September","December")
+AverageRMSEtable = rowMeans(RMSEtable)
+TotalAverageRMSE = cbind(TotalAverageRMSE,AverageRMSEtable)
+colnames(TotalAverageRMSE)[seed.number] = seed.number
+
+
+MAEtable = cbind(as.numeric(FebruaryTable[,4]),as.numeric(JulyTable[,4]),as.numeric(SeptemberTable[,4]),as.numeric(DecemberTable[,4]))
+rownames(MAEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(MAEtable) = c("February","July","September","December")
+AverageMAEtable = rowMeans(MAEtable)
+TotalAverageMAE = cbind(TotalAverageMAE,AverageMAEtable)
+colnames(TotalAverageMAE)[seed.number] = seed.number
+
+MASEtable = cbind(as.numeric(FebruaryTable[,7]),as.numeric(JulyTable[,7]),as.numeric(SeptemberTable[,7]),as.numeric(DecemberTable[,7]))
+rownames(MASEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(MASEtable) = c("February","July","September","December")
+AverageMASEtable = rowMeans(MASEtable)
+TotalAverageMASE = cbind(TotalAverageMASE,AverageMASEtable)
+colnames(TotalAverageMASE)[seed.number] = seed.number
+  
+}
+#RMSE Average
+RandomAverageRMSE = rowMeans(TotalAverageRMSE)
+
+#MAE Average
+RandomAverageMAE = rowMeans(TotalAverageMAE)
+
+#MASE Average
+RandomAverageMASE = rowMeans(TotalAverageMASE)
+
+#RandomAverageRMSE
+range(TotalAverageRMSE[1,])
+range(TotalAverageRMSE[2,])
+range(TotalAverageRMSE[3,])
+range(TotalAverageRMSE[4,])
+range(TotalAverageRMSE[5,])
+#RandomAverageMAE
+range(TotalAverageMAE[1,])
+range(TotalAverageMAE[2,])
+range(TotalAverageMAE[3,])
+range(TotalAverageMAE[4,])
+range(TotalAverageMAE[5,])
+#RandomAverageMASE
+range(TotalAverageMASE[1,])
+range(TotalAverageMASE[2,])
+range(TotalAverageMASE[3,])
+range(TotalAverageMASE[4,])
+range(TotalAverageMASE[5,])
+
+```
+
+#BVAR 2021 (Differenced data) (Average results from 20 random seed)
+```{r}
+library(vars)
+library(forecast)
+library(dplyr)
+
+set.seed(123456789)
+n = 20
+randomseed = sample(1:100000,n)
+
+library(BVAR)
+
+Year = 2021
+Month = c("February", "July", "September", "December")
+MonthNumber = c(32, 182, 244, 335)
+
+TotalAverageRMSE = vector()
+TotalAverageMAE = vector()
+TotalAverageMASE = vector()
+
+for(seed.number in 1:n){
+
+set.seed(randomseed[seed.number])
+  
+for(MonthVariables in 1:4){
+# First we convert dataset into a time series object
+Ts = ts(data[,c(2:7)], start = c(2017,1), frequency = 365 )
+TsDK1 = ts(data[,2:2], start = c(2017,1), frequency = 365 )
+
+TsDiff = diff(Ts, lag = 1)
+TsDK1Diff = diff(TsDK1, lag = 1)
+
+#Subsetting train and test data using window()function 
+month2019train = window(TsDiff,start = c(Year-2, MonthNumber[MonthVariables]), end = c(Year, MonthNumber[MonthVariables]))
+month2019test = window(TsDK1Diff, start = c(Year, MonthNumber[MonthVariables]))
+
+
+#Models estimating.
+bvar.model = bvar(data = month2019train, lags = 7)
+
+#Forecasting for 1-28 days 
+model1dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 1)
+model7dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 7)
+model14dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 14)
+model21dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 21)
+model28dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 28)
+
+bvar.ts1 = ts(data = model1dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts7 = ts(data = model7dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts14 = ts(data = model14dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts21 = ts(data = model21dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts28 = ts(data = model28dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+# Accuracy TABLE
+decna1=forecast::accuracy(object = bvar.ts1, x= month2019test, d=1, D=0)[1:5]
+decna7=forecast::accuracy(object = bvar.ts7, x= month2019test, d=1, D=0)[1:5]
+decna14=forecast::accuracy(object = bvar.ts14,x= month2019test, d=1, D=0)[1:5]
+decna21=forecast::accuracy(object = bvar.ts21,x= month2019test, d=1, D=0)[1:5]
+decna28=forecast::accuracy(object = bvar.ts28,x= month2019test, d=1, D=0)[1:5]
+
+
+naiveforecast = c(NA, month2019train[,1][-length(month2019train)])
+naiveforecast_1 = ts(data = naiveforecast, start = c(Year-2, MonthNumber[MonthVariables]), end = c(Year, MonthNumber[MonthVariables]),frequency = 365 )
+
+Naive_MAE = mean(abs(month2019train[,1]-naiveforecast_1), na.rm=T)
+
+
+MASE1 = decna1[3] / Naive_MAE
+MASE7 = decna7[3] / Naive_MAE
+MASE14 = decna14[3] / Naive_MAE
+MASE21 = decna21[3] / Naive_MAE
+MASE28 = decna28[3] / Naive_MAE
+
+names(MASE1) <- "newMASE"
+names(MASE7) <- "newMASE"
+names(MASE14) <- "newMASE"
+names(MASE21) <- "newMASE"
+names(MASE28) <- "newMASE"
+
+accuracytable = rbind(c(decna1,MASE1),c(decna7,MASE7),c(decna14,MASE14),c(decna21,MASE21),c(decna28,MASE28))
+#plot table
+naivetable = cbind(Month[MonthVariables],accuracytable)
+rownames(naivetable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(naivetable) = c("Month", "ME", "RMSE", "MAE", "MPE", "MAPE","MASEcalc")
+
+if (MonthVariables == 1) {FebruaryTable = naivetable}
+if (MonthVariables == 2) {JulyTable = naivetable}
+if (MonthVariables == 3) {SeptemberTable = naivetable}
+if (MonthVariables == 4) {DecemberTable = naivetable}
+
+naivetsplot = window(TsDK1Diff, start = c(Year, 1),end = c(Year + 1,1))
+prettyplot = autoplot(naivetsplot, xlab = "Year", ylab = "Electricity price in DK1 area", main="BVAR, h=1,7,14,21,28")+autolayer(bvar.ts28, series = "28 Days", size = 1)+autolayer(bvar.ts21, series = "21 Days", size = 1)+autolayer(bvar.ts14, series = "14 Days", size = 1)+autolayer(bvar.ts7, series = "7 Days", size = 1)+autolayer(bvar.ts1, series = "Days point", size = 1)
+assign(paste0("prettyplot",MonthVariables),prettyplot)
+
+}
+
+RMSEtable = cbind(as.numeric(FebruaryTable[,3]),as.numeric(JulyTable[,3]),as.numeric(SeptemberTable[,3]),as.numeric(DecemberTable[,3]))
+rownames(RMSEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(RMSEtable) = c("February","July","September","December")
+AverageRMSEtable = rowMeans(RMSEtable)
+TotalAverageRMSE = cbind(TotalAverageRMSE,AverageRMSEtable)
+colnames(TotalAverageRMSE)[seed.number] = seed.number
+
+
+MAEtable = cbind(as.numeric(FebruaryTable[,4]),as.numeric(JulyTable[,4]),as.numeric(SeptemberTable[,4]),as.numeric(DecemberTable[,4]))
+rownames(MAEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(MAEtable) = c("February","July","September","December")
+AverageMAEtable = rowMeans(MAEtable)
+TotalAverageMAE = cbind(TotalAverageMAE,AverageMAEtable)
+colnames(TotalAverageMAE)[seed.number] = seed.number
+
+MASEtable = cbind(as.numeric(FebruaryTable[,7]),as.numeric(JulyTable[,7]),as.numeric(SeptemberTable[,7]),as.numeric(DecemberTable[,7]))
+rownames(MASEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(MASEtable) = c("February","July","September","December")
+AverageMASEtable = rowMeans(MASEtable)
+TotalAverageMASE = cbind(TotalAverageMASE,AverageMASEtable)
+colnames(TotalAverageMASE)[seed.number] = seed.number
+  
+}
+#RMSE Average
+RandomAverageRMSE = rowMeans(TotalAverageRMSE)
+
+#MAE Average
+RandomAverageMAE = rowMeans(TotalAverageMAE)
+
+#MASE Average
+RandomAverageMASE = rowMeans(TotalAverageMASE)
+
+RandomAverageRMSE
+RandomAverageMAE
+RandomAverageMASE
+
+#RandomAverageRMSE
+range(TotalAverageRMSE[1,])
+range(TotalAverageRMSE[2,])
+range(TotalAverageRMSE[3,])
+range(TotalAverageRMSE[4,])
+range(TotalAverageRMSE[5,])
+#RandomAverageMAE
+range(TotalAverageMAE[1,])
+range(TotalAverageMAE[2,])
+range(TotalAverageMAE[3,])
+range(TotalAverageMAE[4,])
+range(TotalAverageMAE[5,])
+#RandomAverageMASE
+range(TotalAverageMASE[1,])
+range(TotalAverageMASE[2,])
+range(TotalAverageMASE[3,])
+range(TotalAverageMASE[4,])
+range(TotalAverageMASE[5,])
+```
+
+
+
+#BVAR 2019 (Differenced data) Without gasPrice
+```{r}
+library(vars)
+library(forecast)
+
+set.seed(123456789)
+library(BVAR)
+
+Year = 2019
+Month = c("February", "July", "September", "December")
+MonthNumber = c(32, 182, 244, 335)
+
+
+
+
+for(MonthVariables in 1:4){
+# First we convert dataset into a time series object
+Ts = ts(data[,c(2:3,5:7)], start = c(2017,1), frequency = 365 )
+TsDK1 = ts(data[,2:2], start = c(2017,1), frequency = 365 )
+
+TsDiff = diff(Ts, lag = 1)
+TsDK1Diff = diff(TsDK1, lag = 1)
+
+#Subsetting train and test data using window()function 
+month2019train = window(TsDiff, end = c(Year, MonthNumber[MonthVariables]))
+month2019test = window(TsDK1Diff, start = c(Year, MonthNumber[MonthVariables]))
+
+
+#Models estimating.
+bvar.model = bvar(data = month2019train, lags = 7)
+
+#Forecasting for 1-28 days 
+model1dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 1)
+model7dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 7)
+model14dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 14)
+model21dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 21)
+model28dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 28)
+
+bvar.ts1 = ts(data = model1dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts7 = ts(data = model7dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts14 = ts(data = model14dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts21 = ts(data = model21dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts28 = ts(data = model28dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+# Accuracy TABLE
+decna1=forecast::accuracy(object = bvar.ts1, x= month2019test, d=1, D=0)[1:5]
+decna7=forecast::accuracy(object = bvar.ts7, x= month2019test, d=1, D=0)[1:5]
+decna14=forecast::accuracy(object = bvar.ts14,x= month2019test, d=1, D=0)[1:5]
+decna21=forecast::accuracy(object = bvar.ts21,x= month2019test, d=1, D=0)[1:5]
+decna28=forecast::accuracy(object = bvar.ts28,x= month2019test, d=1, D=0)[1:5]
+
+
+naiveforecast = c(NA, month2019train[,1][-length(month2019train)])
+naiveforecast_1 = ts(data = naiveforecast, start = c(Year-2, MonthNumber[MonthVariables]), end = c(Year, MonthNumber[MonthVariables]),frequency = 365 )
+
+Naive_MAE = mean(abs(month2019train[,1]-naiveforecast_1), na.rm=T)
+
+library(dplyr)
+
+MASE1 = decna1[3] / Naive_MAE
+MASE7 = decna7[3] / Naive_MAE
+MASE14 = decna14[3] / Naive_MAE
+MASE21 = decna21[3] / Naive_MAE
+MASE28 = decna28[3] / Naive_MAE
+
+names(MASE1) <- "newMASE"
+names(MASE7) <- "newMASE"
+names(MASE14) <- "newMASE"
+names(MASE21) <- "newMASE"
+names(MASE28) <- "newMASE"
+
+accuracytable = rbind(c(decna1,MASE1),c(decna7,MASE7),c(decna14,MASE14),c(decna21,MASE21),c(decna28,MASE28))
+#plot table
+naivetable = cbind(Month[MonthVariables],accuracytable)
+rownames(naivetable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(naivetable) = c("Month", "ME", "RMSE", "MAE", "MPE", "MAPE","MASEcalc")
+
+if (MonthVariables == 1) {FebruaryTable = naivetable}
+if (MonthVariables == 2) {JulyTable = naivetable}
+if (MonthVariables == 3) {SeptemberTable = naivetable}
+if (MonthVariables == 4) {DecemberTable = naivetable}
+
+naivetsplot = window(TsDK1Diff, start = c(Year, 1),end = c(Year + 1,1))
+prettyplot = autoplot(naivetsplot, xlab = "Year", ylab = "Electricity price in DK1 area", main="BVAR, h=1,7,14,21,28")+autolayer(bvar.ts28, series = "28 Days", size = 1)+autolayer(bvar.ts21, series = "21 Days", size = 1)+autolayer(bvar.ts14, series = "14 Days", size = 1)+autolayer(bvar.ts7, series = "7 Days", size = 1)+autolayer(bvar.ts1, series = "Days point", size = 1)
+assign(paste0("prettyplot",MonthVariables),prettyplot)
+
+}
+#subset DK1 
+FebruaryTable[,c(3,4,7)]
+JulyTable[,c(3,4,7)]
+SeptemberTable[,c(3,4,7)]
+DecemberTable[,c(3,4,7)]
+
+RMSEtable = cbind(as.numeric(FebruaryTable[,3]),as.numeric(JulyTable[,3]),as.numeric(SeptemberTable[,3]),as.numeric(DecemberTable[,3]))
+rownames(RMSEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(RMSEtable) = c("February","July","September","December")
+AverageRMSEtable = rowMeans(RMSEtable)
+AverageRMSEtable
+
+MAEtable = cbind(as.numeric(FebruaryTable[,4]),as.numeric(JulyTable[,4]),as.numeric(SeptemberTable[,4]),as.numeric(DecemberTable[,4]))
+rownames(MAEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(MAEtable) = c("February","July","September","December")
+AverageMAEtable = rowMeans(MAEtable)
+AverageMAEtable
+
+MASEtable = cbind(as.numeric(FebruaryTable[,7]),as.numeric(JulyTable[,7]),as.numeric(SeptemberTable[,7]),as.numeric(DecemberTable[,7]))
+rownames(MASEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(MASEtable) = c("February","July","September","December")
+AverageMAEtable = rowMeans(MASEtable)
+AverageMAEtable
+
+prettyplot1
+prettyplot2
+prettyplot3
+prettyplot4
+```
+
+
+#BVAR 2021 (Differenced data) Without gasPrice
+```{r}
+library(vars)
+library(forecast)
+
+set.seed(123456789)
+library(BVAR)
+
+Year = 2021
+Month = c("February", "July", "September", "December")
+MonthNumber = c(32, 182, 244, 335)
+
+for(MonthVariables in 1:4){
+# First we convert dataset into a time series object
+Ts = ts(data[,c(2:3,5:7)], start = c(2017,1), frequency = 365 )
+TsDK1 = ts(data[,2:2], start = c(2017,1), frequency = 365 )
+
+TsDiff = diff(Ts, lag = 1)
+TsDK1Diff = diff(TsDK1, lag = 1)
+
+#Subsetting train and test data using window()function 
+month2019train = window(TsDiff,start = c(Year-2, MonthNumber[MonthVariables]), end = c(Year, MonthNumber[MonthVariables]))
+month2019test = window(TsDK1Diff, start = c(Year, MonthNumber[MonthVariables]))
+
+
+
+#Models estimating.
+bvar.model = bvar(data = month2019train, lags = 7)
+
+#Forecasting for 1-28 days 
+model1dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 1)
+model7dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 7)
+model14dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 14)
+model21dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 21)
+model28dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 28)
+
+bvar.ts1 = ts(data = model1dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts7 = ts(data = model7dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts14 = ts(data = model14dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts21 = ts(data = model21dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts28 = ts(data = model28dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+# Accuracy TABLE
+decna1=forecast::accuracy(object = bvar.ts1, x= month2019test+1)[1:5]
+decna7=forecast::accuracy(object = bvar.ts7, x= month2019test+1)[1:5]
+decna14=forecast::accuracy(object = bvar.ts14,x= month2019test+1)[1:5]
+decna21=forecast::accuracy(object = bvar.ts21,x= month2019test+1)[1:5]
+decna28=forecast::accuracy(object = bvar.ts28,x= month2019test+1)[1:5]
+
+naiveforecast = c(NA, month2019train[,1][-length(month2019train)])
+naiveforecast_1 = ts(data = naiveforecast, start = c(Year-2, MonthNumber[MonthVariables]), end = c(Year, MonthNumber[MonthVariables]),frequency = 365 )
+
+Naive_MAE = mean(abs(month2019train[,1]-naiveforecast_1), na.rm=T)
+
+library(dplyr)
+
+MASE1 = decna1[3] / Naive_MAE
+MASE7 = decna7[3] / Naive_MAE
+MASE14 = decna14[3] / Naive_MAE
+MASE21 = decna21[3] / Naive_MAE
+MASE28 = decna28[3] / Naive_MAE
+
+names(MASE1) <- "newMASE"
+names(MASE7) <- "newMASE"
+names(MASE14) <- "newMASE"
+names(MASE21) <- "newMASE"
+names(MASE28) <- "newMASE"
+
+accuracytable = rbind(c(decna1,MASE1),c(decna7,MASE7),c(decna14,MASE14),c(decna21,MASE21),c(decna28,MASE28))
+#plot table
+naivetable = cbind(Month[MonthVariables],accuracytable)
+rownames(naivetable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(naivetable) = c("Month", "ME", "RMSE", "MAE", "MPE", "MAPE","MASEcalc")
+
+if (MonthVariables == 1) {FebruaryTable = naivetable}
+if (MonthVariables == 2) {JulyTable = naivetable}
+if (MonthVariables == 3) {SeptemberTable = naivetable}
+if (MonthVariables == 4) {DecemberTable = naivetable}
+
+naivetsplot = window(TsDK1Diff, start = c(Year, 1),end = c(Year + 1,1))
+prettyplot = autoplot(naivetsplot, xlab = "Year", ylab = "Electricity price in DK1 area", main="BVAR, h=1,7,14,21,28")+autolayer(bvar.ts28, series = "28 Days", size = 1)+autolayer(bvar.ts21, series = "21 Days", size = 1)+autolayer(bvar.ts14, series = "14 Days", size = 1)+autolayer(bvar.ts7, series = "7 Days", size = 1)+autolayer(bvar.ts1, series = "Days point", size = 1)
+assign(paste0("prettyplot",MonthVariables),prettyplot)
+
+}
+#subset DK1 
+FebruaryTable[,c(3,4,7)]
+JulyTable[,c(3,4,7)]
+SeptemberTable[,c(3,4,7)]
+DecemberTable[,c(3,4,7)]
+
+RMSEtable = cbind(as.numeric(FebruaryTable[,3]),as.numeric(JulyTable[,3]),as.numeric(SeptemberTable[,3]),as.numeric(DecemberTable[,3]))
+rownames(RMSEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(RMSEtable) = c("February","July","September","December")
+AverageRMSEtable = rowMeans(RMSEtable)
+AverageRMSEtable
+
+MAEtable = cbind(as.numeric(FebruaryTable[,4]),as.numeric(JulyTable[,4]),as.numeric(SeptemberTable[,4]),as.numeric(DecemberTable[,4]))
+rownames(MAEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(MAEtable) = c("February","July","September","December")
+AverageMAEtable = rowMeans(MAEtable)
+AverageMAEtable
+
+MASEtable = cbind(as.numeric(FebruaryTable[,7]),as.numeric(JulyTable[,7]),as.numeric(SeptemberTable[,7]),as.numeric(DecemberTable[,7]))
+rownames(MASEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(MASEtable) = c("February","July","September","December")
+AverageMAEtable = rowMeans(MASEtable)
+AverageMAEtable
+
+prettyplot1
+prettyplot2
+prettyplot3
+prettyplot4
+```
+
+
+
+#BVAR 2019 (Differenced data) Without dkTemp
+```{r}
+library(vars)
+library(forecast)
+
+set.seed(123456789)
+library(BVAR)
+
+Year = 2019
+Month = c("February", "July", "September", "December")
+MonthNumber = c(32, 182, 244, 335)
+
+
+
+
+for(MonthVariables in 1:4){
+# First we convert dataset into a time series object
+Ts = ts(data[,c(2:4,6:7)], start = c(2017,1), frequency = 365 )
+TsDK1 = ts(data[,2:2], start = c(2017,1), frequency = 365 )
+
+TsDiff = diff(Ts, lag = 1)
+TsDK1Diff = diff(TsDK1, lag = 1)
+
+#Subsetting train and test data using window()function 
+month2019train = window(TsDiff, end = c(Year, MonthNumber[MonthVariables]))
+month2019test = window(TsDK1Diff, start = c(Year, MonthNumber[MonthVariables]))
+
+
+#Models estimating.
+bvar.model = bvar(data = month2019train, lags = 7)
+
+#Forecasting for 1-28 days 
+model1dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 1)
+model7dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 7)
+model14dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 14)
+model21dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 21)
+model28dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 28)
+
+bvar.ts1 = ts(data = model1dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts7 = ts(data = model7dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts14 = ts(data = model14dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts21 = ts(data = model21dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts28 = ts(data = model28dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+# Accuracy TABLE
+decna1=forecast::accuracy(object = bvar.ts1, x= month2019test, d=1, D=0)[1:5]
+decna7=forecast::accuracy(object = bvar.ts7, x= month2019test, d=1, D=0)[1:5]
+decna14=forecast::accuracy(object = bvar.ts14,x= month2019test, d=1, D=0)[1:5]
+decna21=forecast::accuracy(object = bvar.ts21,x= month2019test, d=1, D=0)[1:5]
+decna28=forecast::accuracy(object = bvar.ts28,x= month2019test, d=1, D=0)[1:5]
+
+
+naiveforecast = c(NA, month2019train[,1][-length(month2019train)])
+naiveforecast_1 = ts(data = naiveforecast, start = c(Year-2, MonthNumber[MonthVariables]), end = c(Year, MonthNumber[MonthVariables]),frequency = 365 )
+
+Naive_MAE = mean(abs(month2019train[,1]-naiveforecast_1), na.rm=T)
+
+library(dplyr)
+
+MASE1 = decna1[3] / Naive_MAE
+MASE7 = decna7[3] / Naive_MAE
+MASE14 = decna14[3] / Naive_MAE
+MASE21 = decna21[3] / Naive_MAE
+MASE28 = decna28[3] / Naive_MAE
+
+names(MASE1) <- "newMASE"
+names(MASE7) <- "newMASE"
+names(MASE14) <- "newMASE"
+names(MASE21) <- "newMASE"
+names(MASE28) <- "newMASE"
+
+accuracytable = rbind(c(decna1,MASE1),c(decna7,MASE7),c(decna14,MASE14),c(decna21,MASE21),c(decna28,MASE28))
+#plot table
+naivetable = cbind(Month[MonthVariables],accuracytable)
+rownames(naivetable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(naivetable) = c("Month", "ME", "RMSE", "MAE", "MPE", "MAPE","MASEcalc")
+
+if (MonthVariables == 1) {FebruaryTable = naivetable}
+if (MonthVariables == 2) {JulyTable = naivetable}
+if (MonthVariables == 3) {SeptemberTable = naivetable}
+if (MonthVariables == 4) {DecemberTable = naivetable}
+
+naivetsplot = window(TsDK1Diff, start = c(Year, 1),end = c(Year + 1,1))
+prettyplot = autoplot(naivetsplot, xlab = "Year", ylab = "Electricity price in DK1 area", main="BVAR, h=1,7,14,21,28")+autolayer(bvar.ts28, series = "28 Days", size = 1)+autolayer(bvar.ts21, series = "21 Days", size = 1)+autolayer(bvar.ts14, series = "14 Days", size = 1)+autolayer(bvar.ts7, series = "7 Days", size = 1)+autolayer(bvar.ts1, series = "Days point", size = 1)
+assign(paste0("prettyplot",MonthVariables),prettyplot)
+
+}
+#subset DK1 
+FebruaryTable[,c(3,4,7)]
+JulyTable[,c(3,4,7)]
+SeptemberTable[,c(3,4,7)]
+DecemberTable[,c(3,4,7)]
+
+RMSEtable = cbind(as.numeric(FebruaryTable[,3]),as.numeric(JulyTable[,3]),as.numeric(SeptemberTable[,3]),as.numeric(DecemberTable[,3]))
+rownames(RMSEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(RMSEtable) = c("February","July","September","December")
+AverageRMSEtable = rowMeans(RMSEtable)
+AverageRMSEtable
+
+MAEtable = cbind(as.numeric(FebruaryTable[,4]),as.numeric(JulyTable[,4]),as.numeric(SeptemberTable[,4]),as.numeric(DecemberTable[,4]))
+rownames(MAEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(MAEtable) = c("February","July","September","December")
+AverageMAEtable = rowMeans(MAEtable)
+AverageMAEtable
+
+MASEtable = cbind(as.numeric(FebruaryTable[,7]),as.numeric(JulyTable[,7]),as.numeric(SeptemberTable[,7]),as.numeric(DecemberTable[,7]))
+rownames(MASEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(MASEtable) = c("February","July","September","December")
+AverageMAEtable = rowMeans(MASEtable)
+AverageMAEtable
+
+prettyplot1
+prettyplot2
+prettyplot3
+prettyplot4
+```
+
+#BVAR 2021 (Differenced data) Without dkTemp
+```{r}
+library(vars)
+library(forecast)
+
+set.seed(123456789)
+library(BVAR)
+
+Year = 2021
+Month = c("February", "July", "September", "December")
+MonthNumber = c(32, 182, 244, 335)
+
+for(MonthVariables in 1:4){
+# First we convert dataset into a time series object
+Ts = ts(data[,c(2:4,6:7)], start = c(2017,1), frequency = 365 )
+TsDK1 = ts(data[,2:2], start = c(2017,1), frequency = 365 )
+
+TsDiff = diff(Ts, lag = 1)
+TsDK1Diff = diff(TsDK1, lag = 1)
+
+#Subsetting train and test data using window()function 
+month2019train = window(TsDiff,start = c(Year-2, MonthNumber[MonthVariables]), end = c(Year, MonthNumber[MonthVariables]))
+month2019test = window(TsDK1Diff, start = c(Year, MonthNumber[MonthVariables]))
+
+
+
+#Models estimating.
+bvar.model = bvar(data = month2019train, lags = 7)
+
+#Forecasting for 1-28 days 
+model1dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 1)
+model7dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 7)
+model14dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 14)
+model21dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 21)
+model28dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 28)
+
+bvar.ts1 = ts(data = model1dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts7 = ts(data = model7dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts14 = ts(data = model14dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts21 = ts(data = model21dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts28 = ts(data = model28dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+# Accuracy TABLE
+decna1=forecast::accuracy(object = bvar.ts1, x= month2019test+1)[1:5]
+decna7=forecast::accuracy(object = bvar.ts7, x= month2019test+1)[1:5]
+decna14=forecast::accuracy(object = bvar.ts14,x= month2019test+1)[1:5]
+decna21=forecast::accuracy(object = bvar.ts21,x= month2019test+1)[1:5]
+decna28=forecast::accuracy(object = bvar.ts28,x= month2019test+1)[1:5]
+
+naiveforecast = c(NA, month2019train[,1][-length(month2019train)])
+naiveforecast_1 = ts(data = naiveforecast, start = c(Year-2, MonthNumber[MonthVariables]), end = c(Year, MonthNumber[MonthVariables]),frequency = 365 )
+
+Naive_MAE = mean(abs(month2019train[,1]-naiveforecast_1), na.rm=T)
+
+library(dplyr)
+
+MASE1 = decna1[3] / Naive_MAE
+MASE7 = decna7[3] / Naive_MAE
+MASE14 = decna14[3] / Naive_MAE
+MASE21 = decna21[3] / Naive_MAE
+MASE28 = decna28[3] / Naive_MAE
+
+names(MASE1) <- "newMASE"
+names(MASE7) <- "newMASE"
+names(MASE14) <- "newMASE"
+names(MASE21) <- "newMASE"
+names(MASE28) <- "newMASE"
+
+accuracytable = rbind(c(decna1,MASE1),c(decna7,MASE7),c(decna14,MASE14),c(decna21,MASE21),c(decna28,MASE28))
+#plot table
+naivetable = cbind(Month[MonthVariables],accuracytable)
+rownames(naivetable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(naivetable) = c("Month", "ME", "RMSE", "MAE", "MPE", "MAPE","MASEcalc")
+
+if (MonthVariables == 1) {FebruaryTable = naivetable}
+if (MonthVariables == 2) {JulyTable = naivetable}
+if (MonthVariables == 3) {SeptemberTable = naivetable}
+if (MonthVariables == 4) {DecemberTable = naivetable}
+
+naivetsplot = window(TsDK1Diff, start = c(Year, 1),end = c(Year + 1,1))
+prettyplot = autoplot(naivetsplot, xlab = "Year", ylab = "Electricity price in DK1 area", main="BVAR, h=1,7,14,21,28")+autolayer(bvar.ts28, series = "28 Days", size = 1)+autolayer(bvar.ts21, series = "21 Days", size = 1)+autolayer(bvar.ts14, series = "14 Days", size = 1)+autolayer(bvar.ts7, series = "7 Days", size = 1)+autolayer(bvar.ts1, series = "Days point", size = 1)
+assign(paste0("prettyplot",MonthVariables),prettyplot)
+
+}
+#subset DK1 
+FebruaryTable[,c(3,4,7)]
+JulyTable[,c(3,4,7)]
+SeptemberTable[,c(3,4,7)]
+DecemberTable[,c(3,4,7)]
+
+RMSEtable = cbind(as.numeric(FebruaryTable[,3]),as.numeric(JulyTable[,3]),as.numeric(SeptemberTable[,3]),as.numeric(DecemberTable[,3]))
+rownames(RMSEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(RMSEtable) = c("February","July","September","December")
+AverageRMSEtable = rowMeans(RMSEtable)
+AverageRMSEtable
+
+MAEtable = cbind(as.numeric(FebruaryTable[,4]),as.numeric(JulyTable[,4]),as.numeric(SeptemberTable[,4]),as.numeric(DecemberTable[,4]))
+rownames(MAEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(MAEtable) = c("February","July","September","December")
+AverageMAEtable = rowMeans(MAEtable)
+AverageMAEtable
+
+MASEtable = cbind(as.numeric(FebruaryTable[,7]),as.numeric(JulyTable[,7]),as.numeric(SeptemberTable[,7]),as.numeric(DecemberTable[,7]))
+rownames(MASEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(MASEtable) = c("February","July","September","December")
+AverageMAEtable = rowMeans(MASEtable)
+AverageMAEtable
+
+prettyplot1
+prettyplot2
+prettyplot3
+prettyplot4
+```
+
+#BVAR 2019 (Differenced data) Without dkWind
+```{r}
+library(vars)
+library(forecast)
+
+set.seed(123456789)
+library(BVAR)
+
+Year = 2019
+Month = c("February", "July", "September", "December")
+MonthNumber = c(32, 182, 244, 335)
+
+
+
+
+for(MonthVariables in 1:4){
+# First we convert dataset into a time series object
+Ts = ts(data[,c(2:5,7)], start = c(2017,1), frequency = 365 )
+TsDK1 = ts(data[,2:2], start = c(2017,1), frequency = 365 )
+
+TsDiff = diff(Ts, lag = 1)
+TsDK1Diff = diff(TsDK1, lag = 1)
+
+#Subsetting train and test data using window()function 
+month2019train = window(TsDiff, end = c(Year, MonthNumber[MonthVariables]))
+month2019test = window(TsDK1Diff, start = c(Year, MonthNumber[MonthVariables]))
+
+
+#Models estimating.
+bvar.model = bvar(data = month2019train, lags = 7)
+
+#Forecasting for 1-28 days 
+model1dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 1)
+model7dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 7)
+model14dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 14)
+model21dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 21)
+model28dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 28)
+
+bvar.ts1 = ts(data = model1dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts7 = ts(data = model7dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts14 = ts(data = model14dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts21 = ts(data = model21dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts28 = ts(data = model28dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+# Accuracy TABLE
+decna1=forecast::accuracy(object = bvar.ts1, x= month2019test, d=1, D=0)[1:5]
+decna7=forecast::accuracy(object = bvar.ts7, x= month2019test, d=1, D=0)[1:5]
+decna14=forecast::accuracy(object = bvar.ts14,x= month2019test, d=1, D=0)[1:5]
+decna21=forecast::accuracy(object = bvar.ts21,x= month2019test, d=1, D=0)[1:5]
+decna28=forecast::accuracy(object = bvar.ts28,x= month2019test, d=1, D=0)[1:5]
+
+
+naiveforecast = c(NA, month2019train[,1][-length(month2019train)])
+naiveforecast_1 = ts(data = naiveforecast, start = c(Year-2, MonthNumber[MonthVariables]), end = c(Year, MonthNumber[MonthVariables]),frequency = 365 )
+
+Naive_MAE = mean(abs(month2019train[,1]-naiveforecast_1), na.rm=T)
+
+library(dplyr)
+
+MASE1 = decna1[3] / Naive_MAE
+MASE7 = decna7[3] / Naive_MAE
+MASE14 = decna14[3] / Naive_MAE
+MASE21 = decna21[3] / Naive_MAE
+MASE28 = decna28[3] / Naive_MAE
+
+names(MASE1) <- "newMASE"
+names(MASE7) <- "newMASE"
+names(MASE14) <- "newMASE"
+names(MASE21) <- "newMASE"
+names(MASE28) <- "newMASE"
+
+accuracytable = rbind(c(decna1,MASE1),c(decna7,MASE7),c(decna14,MASE14),c(decna21,MASE21),c(decna28,MASE28))
+#plot table
+naivetable = cbind(Month[MonthVariables],accuracytable)
+rownames(naivetable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(naivetable) = c("Month", "ME", "RMSE", "MAE", "MPE", "MAPE","MASEcalc")
+
+if (MonthVariables == 1) {FebruaryTable = naivetable}
+if (MonthVariables == 2) {JulyTable = naivetable}
+if (MonthVariables == 3) {SeptemberTable = naivetable}
+if (MonthVariables == 4) {DecemberTable = naivetable}
+
+naivetsplot = window(TsDK1Diff, start = c(Year, 1),end = c(Year + 1,1))
+prettyplot = autoplot(naivetsplot, xlab = "Year", ylab = "Electricity price in DK1 area", main="BVAR, h=1,7,14,21,28")+autolayer(bvar.ts28, series = "28 Days", size = 1)+autolayer(bvar.ts21, series = "21 Days", size = 1)+autolayer(bvar.ts14, series = "14 Days", size = 1)+autolayer(bvar.ts7, series = "7 Days", size = 1)+autolayer(bvar.ts1, series = "Days point", size = 1)
+assign(paste0("prettyplot",MonthVariables),prettyplot)
+
+}
+#subset DK1 
+FebruaryTable[,c(3,4,7)]
+JulyTable[,c(3,4,7)]
+SeptemberTable[,c(3,4,7)]
+DecemberTable[,c(3,4,7)]
+
+RMSEtable = cbind(as.numeric(FebruaryTable[,3]),as.numeric(JulyTable[,3]),as.numeric(SeptemberTable[,3]),as.numeric(DecemberTable[,3]))
+rownames(RMSEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(RMSEtable) = c("February","July","September","December")
+AverageRMSEtable = rowMeans(RMSEtable)
+AverageRMSEtable
+
+MAEtable = cbind(as.numeric(FebruaryTable[,4]),as.numeric(JulyTable[,4]),as.numeric(SeptemberTable[,4]),as.numeric(DecemberTable[,4]))
+rownames(MAEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(MAEtable) = c("February","July","September","December")
+AverageMAEtable = rowMeans(MAEtable)
+AverageMAEtable
+
+MASEtable = cbind(as.numeric(FebruaryTable[,7]),as.numeric(JulyTable[,7]),as.numeric(SeptemberTable[,7]),as.numeric(DecemberTable[,7]))
+rownames(MASEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(MASEtable) = c("February","July","September","December")
+AverageMAEtable = rowMeans(MASEtable)
+AverageMAEtable
+
+prettyplot1
+prettyplot2
+prettyplot3
+prettyplot4
+```
+
+
+#BVAR 2021 (Differenced data) Without dkWind
+```{r}
+library(vars)
+library(forecast)
+
+set.seed(123456789)
+library(BVAR)
+
+Year = 2021
+Month = c("February", "July", "September", "December")
+MonthNumber = c(32, 182, 244, 335)
+
+for(MonthVariables in 1:4){
+# First we convert dataset into a time series object
+Ts = ts(data[,c(2:5,7)], start = c(2017,1), frequency = 365 )
+TsDK1 = ts(data[,2:2], start = c(2017,1), frequency = 365 )
+
+TsDiff = diff(Ts, lag = 1)
+TsDK1Diff = diff(TsDK1, lag = 1)
+
+#Subsetting train and test data using window()function 
+month2019train = window(TsDiff,start = c(Year-2, MonthNumber[MonthVariables]), end = c(Year, MonthNumber[MonthVariables]))
+month2019test = window(TsDK1Diff, start = c(Year, MonthNumber[MonthVariables]))
+
+
+
+#Models estimating.
+bvar.model = bvar(data = month2019train, lags = 7)
+
+#Forecasting for 1-28 days 
+model1dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 1)
+model7dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 7)
+model14dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 14)
+model21dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 21)
+model28dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 28)
+
+bvar.ts1 = ts(data = model1dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts7 = ts(data = model7dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts14 = ts(data = model14dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts21 = ts(data = model21dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts28 = ts(data = model28dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+# Accuracy TABLE
+decna1=forecast::accuracy(object = bvar.ts1, x= month2019test+1)[1:5]
+decna7=forecast::accuracy(object = bvar.ts7, x= month2019test+1)[1:5]
+decna14=forecast::accuracy(object = bvar.ts14,x= month2019test+1)[1:5]
+decna21=forecast::accuracy(object = bvar.ts21,x= month2019test+1)[1:5]
+decna28=forecast::accuracy(object = bvar.ts28,x= month2019test+1)[1:5]
+
+naiveforecast = c(NA, month2019train[,1][-length(month2019train)])
+naiveforecast_1 = ts(data = naiveforecast, start = c(Year-2, MonthNumber[MonthVariables]), end = c(Year, MonthNumber[MonthVariables]),frequency = 365 )
+
+Naive_MAE = mean(abs(month2019train[,1]-naiveforecast_1), na.rm=T)
+
+library(dplyr)
+
+MASE1 = decna1[3] / Naive_MAE
+MASE7 = decna7[3] / Naive_MAE
+MASE14 = decna14[3] / Naive_MAE
+MASE21 = decna21[3] / Naive_MAE
+MASE28 = decna28[3] / Naive_MAE
+
+names(MASE1) <- "newMASE"
+names(MASE7) <- "newMASE"
+names(MASE14) <- "newMASE"
+names(MASE21) <- "newMASE"
+names(MASE28) <- "newMASE"
+
+accuracytable = rbind(c(decna1,MASE1),c(decna7,MASE7),c(decna14,MASE14),c(decna21,MASE21),c(decna28,MASE28))
+#plot table
+naivetable = cbind(Month[MonthVariables],accuracytable)
+rownames(naivetable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(naivetable) = c("Month", "ME", "RMSE", "MAE", "MPE", "MAPE","MASEcalc")
+
+if (MonthVariables == 1) {FebruaryTable = naivetable}
+if (MonthVariables == 2) {JulyTable = naivetable}
+if (MonthVariables == 3) {SeptemberTable = naivetable}
+if (MonthVariables == 4) {DecemberTable = naivetable}
+
+naivetsplot = window(TsDK1Diff, start = c(Year, 1),end = c(Year + 1,1))
+prettyplot = autoplot(naivetsplot, xlab = "Year", ylab = "Electricity price in DK1 area", main="BVAR, h=1,7,14,21,28")+autolayer(bvar.ts28, series = "28 Days", size = 1)+autolayer(bvar.ts21, series = "21 Days", size = 1)+autolayer(bvar.ts14, series = "14 Days", size = 1)+autolayer(bvar.ts7, series = "7 Days", size = 1)+autolayer(bvar.ts1, series = "Days point", size = 1)
+assign(paste0("prettyplot",MonthVariables),prettyplot)
+
+}
+#subset DK1 
+FebruaryTable[,c(3,4,7)]
+JulyTable[,c(3,4,7)]
+SeptemberTable[,c(3,4,7)]
+DecemberTable[,c(3,4,7)]
+
+RMSEtable = cbind(as.numeric(FebruaryTable[,3]),as.numeric(JulyTable[,3]),as.numeric(SeptemberTable[,3]),as.numeric(DecemberTable[,3]))
+rownames(RMSEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(RMSEtable) = c("February","July","September","December")
+AverageRMSEtable = rowMeans(RMSEtable)
+AverageRMSEtable
+
+MAEtable = cbind(as.numeric(FebruaryTable[,4]),as.numeric(JulyTable[,4]),as.numeric(SeptemberTable[,4]),as.numeric(DecemberTable[,4]))
+rownames(MAEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(MAEtable) = c("February","July","September","December")
+AverageMAEtable = rowMeans(MAEtable)
+AverageMAEtable
+
+MASEtable = cbind(as.numeric(FebruaryTable[,7]),as.numeric(JulyTable[,7]),as.numeric(SeptemberTable[,7]),as.numeric(DecemberTable[,7]))
+rownames(MASEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(MASEtable) = c("February","July","September","December")
+AverageMAEtable = rowMeans(MASEtable)
+AverageMAEtable
+
+prettyplot1
+prettyplot2
+prettyplot3
+prettyplot4
+```
+
+
+#BVAR 2019 (Differenced data) Without nwRain
+```{r}
+library(vars)
+library(forecast)
+
+set.seed(123456789)
+library(BVAR)
+
+Year = 2019
+Month = c("February", "July", "September", "December")
+MonthNumber = c(32, 182, 244, 335)
+
+
+
+
+for(MonthVariables in 1:4){
+# First we convert dataset into a time series object
+Ts = ts(data[,c(2:6)], start = c(2017,1), frequency = 365 )
+TsDK1 = ts(data[,2:2], start = c(2017,1), frequency = 365 )
+
+TsDiff = diff(Ts, lag = 1)
+TsDK1Diff = diff(TsDK1, lag = 1)
+
+#Subsetting train and test data using window()function 
+month2019train = window(TsDiff, end = c(Year, MonthNumber[MonthVariables]))
+month2019test = window(TsDK1Diff, start = c(Year, MonthNumber[MonthVariables]))
+
+
+#Models estimating.
+bvar.model = bvar(data = month2019train, lags = 7)
+
+#Forecasting for 1-28 days 
+model1dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 1)
+model7dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 7)
+model14dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 14)
+model21dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 21)
+model28dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 28)
+
+bvar.ts1 = ts(data = model1dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts7 = ts(data = model7dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts14 = ts(data = model14dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts21 = ts(data = model21dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts28 = ts(data = model28dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+# Accuracy TABLE
+decna1=forecast::accuracy(object = bvar.ts1, x= month2019test, d=1, D=0)[1:5]
+decna7=forecast::accuracy(object = bvar.ts7, x= month2019test, d=1, D=0)[1:5]
+decna14=forecast::accuracy(object = bvar.ts14,x= month2019test, d=1, D=0)[1:5]
+decna21=forecast::accuracy(object = bvar.ts21,x= month2019test, d=1, D=0)[1:5]
+decna28=forecast::accuracy(object = bvar.ts28,x= month2019test, d=1, D=0)[1:5]
+
+
+naiveforecast = c(NA, month2019train[,1][-length(month2019train)])
+naiveforecast_1 = ts(data = naiveforecast, start = c(Year-2, MonthNumber[MonthVariables]), end = c(Year, MonthNumber[MonthVariables]),frequency = 365 )
+
+Naive_MAE = mean(abs(month2019train[,1]-naiveforecast_1), na.rm=T)
+
+library(dplyr)
+
+MASE1 = decna1[3] / Naive_MAE
+MASE7 = decna7[3] / Naive_MAE
+MASE14 = decna14[3] / Naive_MAE
+MASE21 = decna21[3] / Naive_MAE
+MASE28 = decna28[3] / Naive_MAE
+
+names(MASE1) <- "newMASE"
+names(MASE7) <- "newMASE"
+names(MASE14) <- "newMASE"
+names(MASE21) <- "newMASE"
+names(MASE28) <- "newMASE"
+
+accuracytable = rbind(c(decna1,MASE1),c(decna7,MASE7),c(decna14,MASE14),c(decna21,MASE21),c(decna28,MASE28))
+#plot table
+naivetable = cbind(Month[MonthVariables],accuracytable)
+rownames(naivetable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(naivetable) = c("Month", "ME", "RMSE", "MAE", "MPE", "MAPE","MASEcalc")
+
+if (MonthVariables == 1) {FebruaryTable = naivetable}
+if (MonthVariables == 2) {JulyTable = naivetable}
+if (MonthVariables == 3) {SeptemberTable = naivetable}
+if (MonthVariables == 4) {DecemberTable = naivetable}
+
+naivetsplot = window(TsDK1Diff, start = c(Year, 1),end = c(Year + 1,1))
+prettyplot = autoplot(naivetsplot, xlab = "Year", ylab = "Electricity price in DK1 area", main="BVAR, h=1,7,14,21,28")+autolayer(bvar.ts28, series = "28 Days", size = 1)+autolayer(bvar.ts21, series = "21 Days", size = 1)+autolayer(bvar.ts14, series = "14 Days", size = 1)+autolayer(bvar.ts7, series = "7 Days", size = 1)+autolayer(bvar.ts1, series = "Days point", size = 1)
+assign(paste0("prettyplot",MonthVariables),prettyplot)
+
+}
+#subset DK1 
+FebruaryTable[,c(3,4,7)]
+JulyTable[,c(3,4,7)]
+SeptemberTable[,c(3,4,7)]
+DecemberTable[,c(3,4,7)]
+
+RMSEtable = cbind(as.numeric(FebruaryTable[,3]),as.numeric(JulyTable[,3]),as.numeric(SeptemberTable[,3]),as.numeric(DecemberTable[,3]))
+rownames(RMSEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(RMSEtable) = c("February","July","September","December")
+AverageRMSEtable = rowMeans(RMSEtable)
+AverageRMSEtable
+
+MAEtable = cbind(as.numeric(FebruaryTable[,4]),as.numeric(JulyTable[,4]),as.numeric(SeptemberTable[,4]),as.numeric(DecemberTable[,4]))
+rownames(MAEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(MAEtable) = c("February","July","September","December")
+AverageMAEtable = rowMeans(MAEtable)
+AverageMAEtable
+
+MASEtable = cbind(as.numeric(FebruaryTable[,7]),as.numeric(JulyTable[,7]),as.numeric(SeptemberTable[,7]),as.numeric(DecemberTable[,7]))
+rownames(MASEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(MASEtable) = c("February","July","September","December")
+AverageMAEtable = rowMeans(MASEtable)
+AverageMAEtable
+
+prettyplot1
+prettyplot2
+prettyplot3
+prettyplot4
+```
+#BVAR 2021 (Differenced data) Without nwRain
+```{r}
+library(vars)
+library(forecast)
+
+set.seed(123456789)
+library(BVAR)
+
+Year = 2021
+Month = c("February", "July", "September", "December")
+MonthNumber = c(32, 182, 244, 335)
+
+for(MonthVariables in 1:4){
+# First we convert dataset into a time series object
+Ts = ts(data[,c(2:6)], start = c(2017,1), frequency = 365 )
+TsDK1 = ts(data[,2:2], start = c(2017,1), frequency = 365 )
+
+TsDiff = diff(Ts, lag = 1)
+TsDK1Diff = diff(TsDK1, lag = 1)
+
+#Subsetting train and test data using window()function 
+month2019train = window(TsDiff,start = c(Year-2, MonthNumber[MonthVariables]), end = c(Year, MonthNumber[MonthVariables]))
+month2019test = window(TsDK1Diff, start = c(Year, MonthNumber[MonthVariables]))
+
+
+
+#Models estimating.
+bvar.model = bvar(data = month2019train, lags = 7)
+
+#Forecasting for 1-28 days 
+model1dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 1)
+model7dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 7)
+model14dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 14)
+model21dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 21)
+model28dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 28)
+
+bvar.ts1 = ts(data = model1dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts7 = ts(data = model7dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts14 = ts(data = model14dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts21 = ts(data = model21dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts28 = ts(data = model28dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+# Accuracy TABLE
+decna1=forecast::accuracy(object = bvar.ts1, x= month2019test+1)[1:5]
+decna7=forecast::accuracy(object = bvar.ts7, x= month2019test+1)[1:5]
+decna14=forecast::accuracy(object = bvar.ts14,x= month2019test+1)[1:5]
+decna21=forecast::accuracy(object = bvar.ts21,x= month2019test+1)[1:5]
+decna28=forecast::accuracy(object = bvar.ts28,x= month2019test+1)[1:5]
+
+naiveforecast = c(NA, month2019train[,1][-length(month2019train)])
+naiveforecast_1 = ts(data = naiveforecast, start = c(Year-2, MonthNumber[MonthVariables]), end = c(Year, MonthNumber[MonthVariables]),frequency = 365 )
+
+Naive_MAE = mean(abs(month2019train[,1]-naiveforecast_1), na.rm=T)
+
+library(dplyr)
+
+MASE1 = decna1[3] / Naive_MAE
+MASE7 = decna7[3] / Naive_MAE
+MASE14 = decna14[3] / Naive_MAE
+MASE21 = decna21[3] / Naive_MAE
+MASE28 = decna28[3] / Naive_MAE
+
+names(MASE1) <- "newMASE"
+names(MASE7) <- "newMASE"
+names(MASE14) <- "newMASE"
+names(MASE21) <- "newMASE"
+names(MASE28) <- "newMASE"
+
+accuracytable = rbind(c(decna1,MASE1),c(decna7,MASE7),c(decna14,MASE14),c(decna21,MASE21),c(decna28,MASE28))
+#plot table
+naivetable = cbind(Month[MonthVariables],accuracytable)
+rownames(naivetable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(naivetable) = c("Month", "ME", "RMSE", "MAE", "MPE", "MAPE","MASEcalc")
+
+if (MonthVariables == 1) {FebruaryTable = naivetable}
+if (MonthVariables == 2) {JulyTable = naivetable}
+if (MonthVariables == 3) {SeptemberTable = naivetable}
+if (MonthVariables == 4) {DecemberTable = naivetable}
+
+naivetsplot = window(TsDK1Diff, start = c(Year, 1),end = c(Year + 1,1))
+prettyplot = autoplot(naivetsplot, xlab = "Year", ylab = "Electricity price in DK1 area", main="BVAR, h=1,7,14,21,28")+autolayer(bvar.ts28, series = "28 Days", size = 1)+autolayer(bvar.ts21, series = "21 Days", size = 1)+autolayer(bvar.ts14, series = "14 Days", size = 1)+autolayer(bvar.ts7, series = "7 Days", size = 1)+autolayer(bvar.ts1, series = "Days point", size = 1)
+assign(paste0("prettyplot",MonthVariables),prettyplot)
+
+}
+#subset DK1 
+FebruaryTable[,c(3,4,7)]
+JulyTable[,c(3,4,7)]
+SeptemberTable[,c(3,4,7)]
+DecemberTable[,c(3,4,7)]
+
+RMSEtable = cbind(as.numeric(FebruaryTable[,3]),as.numeric(JulyTable[,3]),as.numeric(SeptemberTable[,3]),as.numeric(DecemberTable[,3]))
+rownames(RMSEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(RMSEtable) = c("February","July","September","December")
+AverageRMSEtable = rowMeans(RMSEtable)
+AverageRMSEtable
+
+MAEtable = cbind(as.numeric(FebruaryTable[,4]),as.numeric(JulyTable[,4]),as.numeric(SeptemberTable[,4]),as.numeric(DecemberTable[,4]))
+rownames(MAEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(MAEtable) = c("February","July","September","December")
+AverageMAEtable = rowMeans(MAEtable)
+AverageMAEtable
+
+MASEtable = cbind(as.numeric(FebruaryTable[,7]),as.numeric(JulyTable[,7]),as.numeric(SeptemberTable[,7]),as.numeric(DecemberTable[,7]))
+rownames(MASEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(MASEtable) = c("February","July","September","December")
+AverageMAEtable = rowMeans(MASEtable)
+AverageMAEtable
+
+prettyplot1
+prettyplot2
+prettyplot3
+prettyplot4
+```
+
+#BVAR 2019 (Differenced data) Without East Denmark
+```{r}
+library(vars)
+library(forecast)
+
+set.seed(123456789)
+library(BVAR)
+
+Year = 2019
+Month = c("February", "July", "September", "December")
+MonthNumber = c(32, 182, 244, 335)
+
+
+
+
+for(MonthVariables in 1:4){
+# First we convert dataset into a time series object
+Ts = ts(data[,c(2,4:7)], start = c(2017,1), frequency = 365 )
+TsDK1 = ts(data[,2:2], start = c(2017,1), frequency = 365 )
+
+TsDiff = diff(Ts, lag = 1)
+TsDK1Diff = diff(TsDK1, lag = 1)
+
+#Subsetting train and test data using window()function 
+month2019train = window(TsDiff, end = c(Year, MonthNumber[MonthVariables]))
+month2019test = window(TsDK1Diff, start = c(Year, MonthNumber[MonthVariables]))
+
+
+#Models estimating.
+bvar.model = bvar(data = month2019train, lags = 7)
+
+#Forecasting for 1-28 days 
+model1dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 1)
+model7dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 7)
+model14dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 14)
+model21dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 21)
+model28dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 28)
+
+bvar.ts1 = ts(data = model1dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts7 = ts(data = model7dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts14 = ts(data = model14dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts21 = ts(data = model21dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts28 = ts(data = model28dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+# Accuracy TABLE
+decna1=forecast::accuracy(object = bvar.ts1, x= month2019test, d=1, D=0)[1:5]
+decna7=forecast::accuracy(object = bvar.ts7, x= month2019test, d=1, D=0)[1:5]
+decna14=forecast::accuracy(object = bvar.ts14,x= month2019test, d=1, D=0)[1:5]
+decna21=forecast::accuracy(object = bvar.ts21,x= month2019test, d=1, D=0)[1:5]
+decna28=forecast::accuracy(object = bvar.ts28,x= month2019test, d=1, D=0)[1:5]
+
+
+naiveforecast = c(NA, month2019train[,1][-length(month2019train)])
+naiveforecast_1 = ts(data = naiveforecast, start = c(Year-2, MonthNumber[MonthVariables]), end = c(Year, MonthNumber[MonthVariables]),frequency = 365 )
+
+Naive_MAE = mean(abs(month2019train[,1]-naiveforecast_1), na.rm=T)
+
+library(dplyr)
+
+MASE1 = decna1[3] / Naive_MAE
+MASE7 = decna7[3] / Naive_MAE
+MASE14 = decna14[3] / Naive_MAE
+MASE21 = decna21[3] / Naive_MAE
+MASE28 = decna28[3] / Naive_MAE
+
+names(MASE1) <- "newMASE"
+names(MASE7) <- "newMASE"
+names(MASE14) <- "newMASE"
+names(MASE21) <- "newMASE"
+names(MASE28) <- "newMASE"
+
+accuracytable = rbind(c(decna1,MASE1),c(decna7,MASE7),c(decna14,MASE14),c(decna21,MASE21),c(decna28,MASE28))
+#plot table
+naivetable = cbind(Month[MonthVariables],accuracytable)
+rownames(naivetable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(naivetable) = c("Month", "ME", "RMSE", "MAE", "MPE", "MAPE","MASEcalc")
+
+if (MonthVariables == 1) {FebruaryTable = naivetable}
+if (MonthVariables == 2) {JulyTable = naivetable}
+if (MonthVariables == 3) {SeptemberTable = naivetable}
+if (MonthVariables == 4) {DecemberTable = naivetable}
+
+naivetsplot = window(TsDK1Diff, start = c(Year, 1),end = c(Year + 1,1))
+prettyplot = autoplot(naivetsplot, xlab = "Year", ylab = "Electricity price in DK1 area", main="BVAR, h=1,7,14,21,28")+autolayer(bvar.ts28, series = "28 Days", size = 1)+autolayer(bvar.ts21, series = "21 Days", size = 1)+autolayer(bvar.ts14, series = "14 Days", size = 1)+autolayer(bvar.ts7, series = "7 Days", size = 1)+autolayer(bvar.ts1, series = "Days point", size = 1)
+assign(paste0("prettyplot",MonthVariables),prettyplot)
+
+}
+#subset DK1 
+FebruaryTable[,c(3,4,7)]
+JulyTable[,c(3,4,7)]
+SeptemberTable[,c(3,4,7)]
+DecemberTable[,c(3,4,7)]
+
+RMSEtable = cbind(as.numeric(FebruaryTable[,3]),as.numeric(JulyTable[,3]),as.numeric(SeptemberTable[,3]),as.numeric(DecemberTable[,3]))
+rownames(RMSEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(RMSEtable) = c("February","July","September","December")
+AverageRMSEtable = rowMeans(RMSEtable)
+AverageRMSEtable
+
+MAEtable = cbind(as.numeric(FebruaryTable[,4]),as.numeric(JulyTable[,4]),as.numeric(SeptemberTable[,4]),as.numeric(DecemberTable[,4]))
+rownames(MAEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(MAEtable) = c("February","July","September","December")
+AverageMAEtable = rowMeans(MAEtable)
+AverageMAEtable
+
+MASEtable = cbind(as.numeric(FebruaryTable[,7]),as.numeric(JulyTable[,7]),as.numeric(SeptemberTable[,7]),as.numeric(DecemberTable[,7]))
+rownames(MASEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(MASEtable) = c("February","July","September","December")
+AverageMAEtable = rowMeans(MASEtable)
+AverageMAEtable
+
+prettyplot1
+prettyplot2
+prettyplot3
+prettyplot4
+```
+
+
+#BVAR 2021 (Differenced data) Without East Denmark
+```{r}
+library(vars)
+library(forecast)
+
+set.seed(123456789)
+library(BVAR)
+
+Year = 2021
+Month = c("February", "July", "September", "December")
+MonthNumber = c(32, 182, 244, 335)
+
+for(MonthVariables in 1:4){
+# First we convert dataset into a time series object
+Ts = ts(data[,c(2,4:7)], start = c(2017,1), frequency = 365 )
+TsDK1 = ts(data[,2:2], start = c(2017,1), frequency = 365 )
+
+TsDiff = diff(Ts, lag = 1)
+TsDK1Diff = diff(TsDK1, lag = 1)
+
+#Subsetting train and test data using window()function 
+month2019train = window(TsDiff,start = c(Year-2, MonthNumber[MonthVariables]), end = c(Year, MonthNumber[MonthVariables]))
+month2019test = window(TsDK1Diff, start = c(Year, MonthNumber[MonthVariables]))
+
+
+
+#Models estimating.
+bvar.model = bvar(data = month2019train, lags = 7)
+
+#Forecasting for 1-28 days 
+model1dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 1)
+model7dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 7)
+model14dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 14)
+model21dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 21)
+model28dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 28)
+
+bvar.ts1 = ts(data = model1dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts7 = ts(data = model7dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts14 = ts(data = model14dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts21 = ts(data = model21dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts28 = ts(data = model28dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+# Accuracy TABLE
+decna1=forecast::accuracy(object = bvar.ts1, x= month2019test+1)[1:5]
+decna7=forecast::accuracy(object = bvar.ts7, x= month2019test+1)[1:5]
+decna14=forecast::accuracy(object = bvar.ts14,x= month2019test+1)[1:5]
+decna21=forecast::accuracy(object = bvar.ts21,x= month2019test+1)[1:5]
+decna28=forecast::accuracy(object = bvar.ts28,x= month2019test+1)[1:5]
+
+naiveforecast = c(NA, month2019train[,1][-length(month2019train)])
+naiveforecast_1 = ts(data = naiveforecast, start = c(Year-2, MonthNumber[MonthVariables]), end = c(Year, MonthNumber[MonthVariables]),frequency = 365 )
+
+Naive_MAE = mean(abs(month2019train[,1]-naiveforecast_1), na.rm=T)
+
+library(dplyr)
+
+MASE1 = decna1[3] / Naive_MAE
+MASE7 = decna7[3] / Naive_MAE
+MASE14 = decna14[3] / Naive_MAE
+MASE21 = decna21[3] / Naive_MAE
+MASE28 = decna28[3] / Naive_MAE
+
+names(MASE1) <- "newMASE"
+names(MASE7) <- "newMASE"
+names(MASE14) <- "newMASE"
+names(MASE21) <- "newMASE"
+names(MASE28) <- "newMASE"
+
+accuracytable = rbind(c(decna1,MASE1),c(decna7,MASE7),c(decna14,MASE14),c(decna21,MASE21),c(decna28,MASE28))
+#plot table
+naivetable = cbind(Month[MonthVariables],accuracytable)
+rownames(naivetable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(naivetable) = c("Month", "ME", "RMSE", "MAE", "MPE", "MAPE","MASEcalc")
+
+if (MonthVariables == 1) {FebruaryTable = naivetable}
+if (MonthVariables == 2) {JulyTable = naivetable}
+if (MonthVariables == 3) {SeptemberTable = naivetable}
+if (MonthVariables == 4) {DecemberTable = naivetable}
+
+naivetsplot = window(TsDK1Diff, start = c(Year, 1),end = c(Year + 1,1))
+prettyplot = autoplot(naivetsplot, xlab = "Year", ylab = "Electricity price in DK1 area", main="BVAR, h=1,7,14,21,28")+autolayer(bvar.ts28, series = "28 Days", size = 1)+autolayer(bvar.ts21, series = "21 Days", size = 1)+autolayer(bvar.ts14, series = "14 Days", size = 1)+autolayer(bvar.ts7, series = "7 Days", size = 1)+autolayer(bvar.ts1, series = "Days point", size = 1)
+assign(paste0("prettyplot",MonthVariables),prettyplot)
+
+}
+#subset DK1 
+FebruaryTable[,c(3,4,7)]
+JulyTable[,c(3,4,7)]
+SeptemberTable[,c(3,4,7)]
+DecemberTable[,c(3,4,7)]
+
+RMSEtable = cbind(as.numeric(FebruaryTable[,3]),as.numeric(JulyTable[,3]),as.numeric(SeptemberTable[,3]),as.numeric(DecemberTable[,3]))
+rownames(RMSEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(RMSEtable) = c("February","July","September","December")
+AverageRMSEtable = rowMeans(RMSEtable)
+AverageRMSEtable
+
+MAEtable = cbind(as.numeric(FebruaryTable[,4]),as.numeric(JulyTable[,4]),as.numeric(SeptemberTable[,4]),as.numeric(DecemberTable[,4]))
+rownames(MAEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(MAEtable) = c("February","July","September","December")
+AverageMAEtable = rowMeans(MAEtable)
+AverageMAEtable
+
+MASEtable = cbind(as.numeric(FebruaryTable[,7]),as.numeric(JulyTable[,7]),as.numeric(SeptemberTable[,7]),as.numeric(DecemberTable[,7]))
+rownames(MASEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(MASEtable) = c("February","July","September","December")
+AverageMAEtable = rowMeans(MASEtable)
+AverageMAEtable
+
+prettyplot1
+prettyplot2
+prettyplot3
+prettyplot4
+```
+
+#Differenced without Wind and Rain
+#2019 Diff
+```{r}
+library(vars)
+library(forecast)
+
+set.seed(123456789)
+library(BVAR)
+
+Year = 2019
+Month = c("February", "July", "September", "December")
+MonthNumber = c(32, 182, 244, 335)
+
+
+
+
+for(MonthVariables in 1:4){
+# First we convert dataset into a time series object
+Ts = ts(data[,c(2:5)], start = c(2017,1), frequency = 365 )
+TsDK1 = ts(data[,2:2], start = c(2017,1), frequency = 365 )
+
+TsDiff = diff(Ts, lag = 1)
+TsDK1Diff = diff(TsDK1, lag = 1)
+
+#Subsetting train and test data using window()function 
+month2019train = window(TsDiff, end = c(Year, MonthNumber[MonthVariables]))
+month2019test = window(TsDK1Diff, start = c(Year, MonthNumber[MonthVariables]))
+
+
+#Models estimating.
+bvar.model = bvar(data = month2019train, lags = 7)
+
+#Forecasting for 1-28 days 
+model1dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 1)
+model7dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 7)
+model14dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 14)
+model21dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 21)
+model28dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 28)
+
+bvar.ts1 = ts(data = model1dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts7 = ts(data = model7dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts14 = ts(data = model14dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts21 = ts(data = model21dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts28 = ts(data = model28dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+# Accuracy TABLE
+decna1=forecast::accuracy(object = bvar.ts1, x= month2019test, d=1, D=0)[1:5]
+decna7=forecast::accuracy(object = bvar.ts7, x= month2019test, d=1, D=0)[1:5]
+decna14=forecast::accuracy(object = bvar.ts14,x= month2019test, d=1, D=0)[1:5]
+decna21=forecast::accuracy(object = bvar.ts21,x= month2019test, d=1, D=0)[1:5]
+decna28=forecast::accuracy(object = bvar.ts28,x= month2019test, d=1, D=0)[1:5]
+
+
+naiveforecast = c(NA, month2019train[,1][-length(month2019train)])
+naiveforecast_1 = ts(data = naiveforecast, start = c(Year-2, MonthNumber[MonthVariables]), end = c(Year, MonthNumber[MonthVariables]),frequency = 365 )
+
+Naive_MAE = mean(abs(month2019train[,1]-naiveforecast_1), na.rm=T)
+
+library(dplyr)
+
+MASE1 = decna1[3] / Naive_MAE
+MASE7 = decna7[3] / Naive_MAE
+MASE14 = decna14[3] / Naive_MAE
+MASE21 = decna21[3] / Naive_MAE
+MASE28 = decna28[3] / Naive_MAE
+
+names(MASE1) <- "newMASE"
+names(MASE7) <- "newMASE"
+names(MASE14) <- "newMASE"
+names(MASE21) <- "newMASE"
+names(MASE28) <- "newMASE"
+
+accuracytable = rbind(c(decna1,MASE1),c(decna7,MASE7),c(decna14,MASE14),c(decna21,MASE21),c(decna28,MASE28))
+#plot table
+naivetable = cbind(Month[MonthVariables],accuracytable)
+rownames(naivetable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(naivetable) = c("Month", "ME", "RMSE", "MAE", "MPE", "MAPE","MASEcalc")
+
+if (MonthVariables == 1) {FebruaryTable = naivetable}
+if (MonthVariables == 2) {JulyTable = naivetable}
+if (MonthVariables == 3) {SeptemberTable = naivetable}
+if (MonthVariables == 4) {DecemberTable = naivetable}
+
+naivetsplot = window(TsDK1Diff, start = c(Year, 1),end = c(Year + 1,1))
+prettyplot = autoplot(naivetsplot, xlab = "Year", ylab = "Electricity price in DK1 area", main="BVAR, h=1,7,14,21,28")+autolayer(bvar.ts28, series = "28 Days", size = 1)+autolayer(bvar.ts21, series = "21 Days", size = 1)+autolayer(bvar.ts14, series = "14 Days", size = 1)+autolayer(bvar.ts7, series = "7 Days", size = 1)+autolayer(bvar.ts1, series = "Days point", size = 1)
+assign(paste0("prettyplot",MonthVariables),prettyplot)
+
+}
+#subset DK1 
+FebruaryTable[,c(3,4,7)]
+JulyTable[,c(3,4,7)]
+SeptemberTable[,c(3,4,7)]
+DecemberTable[,c(3,4,7)]
+
+RMSEtable = cbind(as.numeric(FebruaryTable[,3]),as.numeric(JulyTable[,3]),as.numeric(SeptemberTable[,3]),as.numeric(DecemberTable[,3]))
+rownames(RMSEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(RMSEtable) = c("February","July","September","December")
+AverageRMSEtable = rowMeans(RMSEtable)
+AverageRMSEtable
+
+MAEtable = cbind(as.numeric(FebruaryTable[,4]),as.numeric(JulyTable[,4]),as.numeric(SeptemberTable[,4]),as.numeric(DecemberTable[,4]))
+rownames(MAEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(MAEtable) = c("February","July","September","December")
+AverageMAEtable = rowMeans(MAEtable)
+AverageMAEtable
+
+MASEtable = cbind(as.numeric(FebruaryTable[,7]),as.numeric(JulyTable[,7]),as.numeric(SeptemberTable[,7]),as.numeric(DecemberTable[,7]))
+rownames(MASEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(MASEtable) = c("February","July","September","December")
+AverageMAEtable = rowMeans(MASEtable)
+AverageMAEtable
+
+prettyplot1
+prettyplot2
+prettyplot3
+prettyplot4
+```
+
+
+#BVAR 2021 (Differenced data) Without Wind and Rain
+```{r}
+library(vars)
+library(forecast)
+
+set.seed(123456789)
+library(BVAR)
+
+Year = 2021
+Month = c("February", "July", "September", "December")
+MonthNumber = c(32, 182, 244, 335)
+
+for(MonthVariables in 1:4){
+# First we convert dataset into a time series object
+Ts = ts(data[,c(2:5)], start = c(2017,1), frequency = 365 )
+TsDK1 = ts(data[,2:2], start = c(2017,1), frequency = 365 )
+
+TsDiff = diff(Ts, lag = 1)
+TsDK1Diff = diff(TsDK1, lag = 1)
+
+#Subsetting train and test data using window()function 
+month2019train = window(TsDiff,start = c(Year-2, MonthNumber[MonthVariables]), end = c(Year, MonthNumber[MonthVariables]))
+month2019test = window(TsDK1Diff, start = c(Year, MonthNumber[MonthVariables]))
+
+
+
+#Models estimating.
+bvar.model = bvar(data = month2019train, lags = 7)
+
+#Forecasting for 1-28 days 
+model1dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 1)
+model7dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 7)
+model14dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 14)
+model21dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 21)
+model28dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 28)
+
+bvar.ts1 = ts(data = model1dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts7 = ts(data = model7dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts14 = ts(data = model14dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts21 = ts(data = model21dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts28 = ts(data = model28dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+# Accuracy TABLE
+decna1=forecast::accuracy(object = bvar.ts1, x= month2019test+1)[1:5]
+decna7=forecast::accuracy(object = bvar.ts7, x= month2019test+1)[1:5]
+decna14=forecast::accuracy(object = bvar.ts14,x= month2019test+1)[1:5]
+decna21=forecast::accuracy(object = bvar.ts21,x= month2019test+1)[1:5]
+decna28=forecast::accuracy(object = bvar.ts28,x= month2019test+1)[1:5]
+
+naiveforecast = c(NA, month2019train[,1][-length(month2019train)])
+naiveforecast_1 = ts(data = naiveforecast, start = c(Year-2, MonthNumber[MonthVariables]), end = c(Year, MonthNumber[MonthVariables]),frequency = 365 )
+
+Naive_MAE = mean(abs(month2019train[,1]-naiveforecast_1), na.rm=T)
+
+library(dplyr)
+
+MASE1 = decna1[3] / Naive_MAE
+MASE7 = decna7[3] / Naive_MAE
+MASE14 = decna14[3] / Naive_MAE
+MASE21 = decna21[3] / Naive_MAE
+MASE28 = decna28[3] / Naive_MAE
+
+names(MASE1) <- "newMASE"
+names(MASE7) <- "newMASE"
+names(MASE14) <- "newMASE"
+names(MASE21) <- "newMASE"
+names(MASE28) <- "newMASE"
+
+accuracytable = rbind(c(decna1,MASE1),c(decna7,MASE7),c(decna14,MASE14),c(decna21,MASE21),c(decna28,MASE28))
+#plot table
+naivetable = cbind(Month[MonthVariables],accuracytable)
+rownames(naivetable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(naivetable) = c("Month", "ME", "RMSE", "MAE", "MPE", "MAPE","MASEcalc")
+
+if (MonthVariables == 1) {FebruaryTable = naivetable}
+if (MonthVariables == 2) {JulyTable = naivetable}
+if (MonthVariables == 3) {SeptemberTable = naivetable}
+if (MonthVariables == 4) {DecemberTable = naivetable}
+
+naivetsplot = window(TsDK1Diff, start = c(Year, 1),end = c(Year + 1,1))
+prettyplot = autoplot(naivetsplot, xlab = "Year", ylab = "Electricity price in DK1 area", main="BVAR, h=1,7,14,21,28")+autolayer(bvar.ts28, series = "28 Days", size = 1)+autolayer(bvar.ts21, series = "21 Days", size = 1)+autolayer(bvar.ts14, series = "14 Days", size = 1)+autolayer(bvar.ts7, series = "7 Days", size = 1)+autolayer(bvar.ts1, series = "Days point", size = 1)
+assign(paste0("prettyplot",MonthVariables),prettyplot)
+
+}
+#subset DK1 
+FebruaryTable[,c(3,4,7)]
+JulyTable[,c(3,4,7)]
+SeptemberTable[,c(3,4,7)]
+DecemberTable[,c(3,4,7)]
+
+RMSEtable = cbind(as.numeric(FebruaryTable[,3]),as.numeric(JulyTable[,3]),as.numeric(SeptemberTable[,3]),as.numeric(DecemberTable[,3]))
+rownames(RMSEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(RMSEtable) = c("February","July","September","December")
+AverageRMSEtable = rowMeans(RMSEtable)
+AverageRMSEtable
+
+MAEtable = cbind(as.numeric(FebruaryTable[,4]),as.numeric(JulyTable[,4]),as.numeric(SeptemberTable[,4]),as.numeric(DecemberTable[,4]))
+rownames(MAEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(MAEtable) = c("February","July","September","December")
+AverageMAEtable = rowMeans(MAEtable)
+AverageMAEtable
+
+MASEtable = cbind(as.numeric(FebruaryTable[,7]),as.numeric(JulyTable[,7]),as.numeric(SeptemberTable[,7]),as.numeric(DecemberTable[,7]))
+rownames(MASEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(MASEtable) = c("February","July","September","December")
+AverageMAEtable = rowMeans(MASEtable)
+AverageMAEtable
+
+prettyplot1
+prettyplot2
+prettyplot3
+prettyplot4
+```
+#BVAR 2019 Differenced with only DK1, DK2, and Gas
+```{r}
+library(vars)
+library(forecast)
+
+set.seed(123456789)
+library(BVAR)
+
+Year = 2019
+Month = c("February", "July", "September", "December")
+MonthNumber = c(32, 182, 244, 335)
+
+
+
+
+for(MonthVariables in 1:4){
+# First we convert dataset into a time series object
+Ts = ts(data[,c(2:4)], start = c(2017,1), frequency = 365 )
+TsDK1 = ts(data[,2:2], start = c(2017,1), frequency = 365 )
+
+TsDiff = diff(Ts, lag = 1)
+TsDK1Diff = diff(TsDK1, lag = 1)
+
+#Subsetting train and test data using window()function 
+month2019train = window(TsDiff, end = c(Year, MonthNumber[MonthVariables]))
+month2019test = window(TsDK1Diff, start = c(Year, MonthNumber[MonthVariables]))
+
+
+#Models estimating.
+bvar.model = bvar(data = month2019train, lags = 7)
+
+#Forecasting for 1-28 days 
+model1dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 1)
+model7dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 7)
+model14dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 14)
+model21dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 21)
+model28dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 28)
+
+bvar.ts1 = ts(data = model1dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts7 = ts(data = model7dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts14 = ts(data = model14dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts21 = ts(data = model21dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts28 = ts(data = model28dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+# Accuracy TABLE
+decna1=forecast::accuracy(object = bvar.ts1, x= month2019test, d=1, D=0)[1:5]
+decna7=forecast::accuracy(object = bvar.ts7, x= month2019test, d=1, D=0)[1:5]
+decna14=forecast::accuracy(object = bvar.ts14,x= month2019test, d=1, D=0)[1:5]
+decna21=forecast::accuracy(object = bvar.ts21,x= month2019test, d=1, D=0)[1:5]
+decna28=forecast::accuracy(object = bvar.ts28,x= month2019test, d=1, D=0)[1:5]
+
+
+naiveforecast = c(NA, month2019train[,1][-length(month2019train)])
+naiveforecast_1 = ts(data = naiveforecast, start = c(Year-2, MonthNumber[MonthVariables]), end = c(Year, MonthNumber[MonthVariables]),frequency = 365 )
+
+Naive_MAE = mean(abs(month2019train[,1]-naiveforecast_1), na.rm=T)
+
+library(dplyr)
+
+MASE1 = decna1[3] / Naive_MAE
+MASE7 = decna7[3] / Naive_MAE
+MASE14 = decna14[3] / Naive_MAE
+MASE21 = decna21[3] / Naive_MAE
+MASE28 = decna28[3] / Naive_MAE
+
+names(MASE1) <- "newMASE"
+names(MASE7) <- "newMASE"
+names(MASE14) <- "newMASE"
+names(MASE21) <- "newMASE"
+names(MASE28) <- "newMASE"
+
+accuracytable = rbind(c(decna1,MASE1),c(decna7,MASE7),c(decna14,MASE14),c(decna21,MASE21),c(decna28,MASE28))
+#plot table
+naivetable = cbind(Month[MonthVariables],accuracytable)
+rownames(naivetable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(naivetable) = c("Month", "ME", "RMSE", "MAE", "MPE", "MAPE","MASEcalc")
+
+if (MonthVariables == 1) {FebruaryTable = naivetable}
+if (MonthVariables == 2) {JulyTable = naivetable}
+if (MonthVariables == 3) {SeptemberTable = naivetable}
+if (MonthVariables == 4) {DecemberTable = naivetable}
+
+naivetsplot = window(TsDK1Diff, start = c(Year, 1),end = c(Year + 1,1))
+prettyplot = autoplot(naivetsplot, xlab = "Year", ylab = "Electricity price in DK1 area", main="BVAR, h=1,7,14,21,28")+autolayer(bvar.ts28, series = "28 Days", size = 1)+autolayer(bvar.ts21, series = "21 Days", size = 1)+autolayer(bvar.ts14, series = "14 Days", size = 1)+autolayer(bvar.ts7, series = "7 Days", size = 1)+autolayer(bvar.ts1, series = "Days point", size = 1)
+assign(paste0("prettyplot",MonthVariables),prettyplot)
+
+}
+#subset DK1 
+FebruaryTable[,c(3,4,7)]
+JulyTable[,c(3,4,7)]
+SeptemberTable[,c(3,4,7)]
+DecemberTable[,c(3,4,7)]
+
+RMSEtable = cbind(as.numeric(FebruaryTable[,3]),as.numeric(JulyTable[,3]),as.numeric(SeptemberTable[,3]),as.numeric(DecemberTable[,3]))
+rownames(RMSEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(RMSEtable) = c("February","July","September","December")
+AverageRMSEtable = rowMeans(RMSEtable)
+AverageRMSEtable
+
+MAEtable = cbind(as.numeric(FebruaryTable[,4]),as.numeric(JulyTable[,4]),as.numeric(SeptemberTable[,4]),as.numeric(DecemberTable[,4]))
+rownames(MAEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(MAEtable) = c("February","July","September","December")
+AverageMAEtable = rowMeans(MAEtable)
+AverageMAEtable
+
+MASEtable = cbind(as.numeric(FebruaryTable[,7]),as.numeric(JulyTable[,7]),as.numeric(SeptemberTable[,7]),as.numeric(DecemberTable[,7]))
+rownames(MASEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(MASEtable) = c("February","July","September","December")
+AverageMAEtable = rowMeans(MASEtable)
+AverageMAEtable
+
+prettyplot1
+prettyplot2
+prettyplot3
+prettyplot4
+```
+
+
+#BVAR 2021 Differenced with only DK1, DK2, and Gas
+```{r}
+library(vars)
+library(forecast)
+
+set.seed(123456789)
+library(BVAR)
+
+Year = 2021
+Month = c("February", "July", "September", "December")
+MonthNumber = c(32, 182, 244, 335)
+
+for(MonthVariables in 1:4){
+# First we convert dataset into a time series object
+Ts = ts(data[,c(2:4)], start = c(2017,1), frequency = 365 )
+TsDK1 = ts(data[,2:2], start = c(2017,1), frequency = 365 )
+
+TsDiff = diff(Ts, lag = 1)
+TsDK1Diff = diff(TsDK1, lag = 1)
+
+#Subsetting train and test data using window()function 
+month2019train = window(TsDiff,start = c(Year-2, MonthNumber[MonthVariables]), end = c(Year, MonthNumber[MonthVariables]))
+month2019test = window(TsDK1Diff, start = c(Year, MonthNumber[MonthVariables]))
+
+
+
+#Models estimating.
+bvar.model = bvar(data = month2019train, lags = 7)
+
+#Forecasting for 1-28 days 
+model1dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 1)
+model7dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 7)
+model14dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 14)
+model21dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 21)
+model28dec2019=predict(object = bvar.model,conf_bands = 0.05, horizon = 28)
+
+bvar.ts1 = ts(data = model1dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts7 = ts(data = model7dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts14 = ts(data = model14dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts21 = ts(data = model21dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+bvar.ts28 = ts(data = model28dec2019$quants[2,,1],start = start(month2019test)+c(0,1),frequency = frequency(month2019test))
+# Accuracy TABLE
+decna1=forecast::accuracy(object = bvar.ts1, x= month2019test+1)[1:5]
+decna7=forecast::accuracy(object = bvar.ts7, x= month2019test+1)[1:5]
+decna14=forecast::accuracy(object = bvar.ts14,x= month2019test+1)[1:5]
+decna21=forecast::accuracy(object = bvar.ts21,x= month2019test+1)[1:5]
+decna28=forecast::accuracy(object = bvar.ts28,x= month2019test+1)[1:5]
+
+naiveforecast = c(NA, month2019train[,1][-length(month2019train)])
+naiveforecast_1 = ts(data = naiveforecast, start = c(Year-2, MonthNumber[MonthVariables]), end = c(Year, MonthNumber[MonthVariables]),frequency = 365 )
+
+Naive_MAE = mean(abs(month2019train[,1]-naiveforecast_1), na.rm=T)
+
+library(dplyr)
+
+MASE1 = decna1[3] / Naive_MAE
+MASE7 = decna7[3] / Naive_MAE
+MASE14 = decna14[3] / Naive_MAE
+MASE21 = decna21[3] / Naive_MAE
+MASE28 = decna28[3] / Naive_MAE
+
+names(MASE1) <- "newMASE"
+names(MASE7) <- "newMASE"
+names(MASE14) <- "newMASE"
+names(MASE21) <- "newMASE"
+names(MASE28) <- "newMASE"
+
+accuracytable = rbind(c(decna1,MASE1),c(decna7,MASE7),c(decna14,MASE14),c(decna21,MASE21),c(decna28,MASE28))
+#plot table
+naivetable = cbind(Month[MonthVariables],accuracytable)
+rownames(naivetable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(naivetable) = c("Month", "ME", "RMSE", "MAE", "MPE", "MAPE","MASEcalc")
+
+if (MonthVariables == 1) {FebruaryTable = naivetable}
+if (MonthVariables == 2) {JulyTable = naivetable}
+if (MonthVariables == 3) {SeptemberTable = naivetable}
+if (MonthVariables == 4) {DecemberTable = naivetable}
+
+naivetsplot = window(TsDK1Diff, start = c(Year, 1),end = c(Year + 1,1))
+prettyplot = autoplot(naivetsplot, xlab = "Year", ylab = "Electricity price in DK1 area", main="BVAR, h=1,7,14,21,28")+autolayer(bvar.ts28, series = "28 Days", size = 1)+autolayer(bvar.ts21, series = "21 Days", size = 1)+autolayer(bvar.ts14, series = "14 Days", size = 1)+autolayer(bvar.ts7, series = "7 Days", size = 1)+autolayer(bvar.ts1, series = "Days point", size = 1)
+assign(paste0("prettyplot",MonthVariables),prettyplot)
+
+}
+#subset DK1 
+FebruaryTable[,c(3,4,7)]
+JulyTable[,c(3,4,7)]
+SeptemberTable[,c(3,4,7)]
+DecemberTable[,c(3,4,7)]
+
+RMSEtable = cbind(as.numeric(FebruaryTable[,3]),as.numeric(JulyTable[,3]),as.numeric(SeptemberTable[,3]),as.numeric(DecemberTable[,3]))
+rownames(RMSEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(RMSEtable) = c("February","July","September","December")
+AverageRMSEtable = rowMeans(RMSEtable)
+AverageRMSEtable
+
+MAEtable = cbind(as.numeric(FebruaryTable[,4]),as.numeric(JulyTable[,4]),as.numeric(SeptemberTable[,4]),as.numeric(DecemberTable[,4]))
+rownames(MAEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(MAEtable) = c("February","July","September","December")
+AverageMAEtable = rowMeans(MAEtable)
+AverageMAEtable
+
+MASEtable = cbind(as.numeric(FebruaryTable[,7]),as.numeric(JulyTable[,7]),as.numeric(SeptemberTable[,7]),as.numeric(DecemberTable[,7]))
+rownames(MASEtable) = c("Point","7 days","14 days","21 days","28 days")
+colnames(MASEtable) = c("February","July","September","December")
+AverageMAEtable = rowMeans(MASEtable)
+AverageMAEtable
+
+prettyplot1
+prettyplot2
+prettyplot3
+prettyplot4
+```
+
+
